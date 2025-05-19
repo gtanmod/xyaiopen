@@ -28,4 +28,4 @@ For complete documentation in Chinese, please see [读我.md](./读我.md).
 
 ## License
 
-MIT 
+MIT
