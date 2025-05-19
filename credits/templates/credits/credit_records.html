@@ -1,0 +1,379 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}积分记录 - 小羊系统{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/credits.css' %}">
+<style>
+    .header {
+        height: var(--header-height);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 15px;
+        background-color: var(--bg-main);
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+        width: 100%;
+    }
+    .header-left {
+        display: flex;
+        align-items: center;
+    }
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 36px;
+        width: 36px;
+        border-radius: 4px;
+        background-color: transparent;
+        border: none;
+        margin-right: 10px;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .back-button:hover {
+        background-color: rgba(0,0,0,0.05);
+    }
+    .back-button i {
+        font-size: 1rem;
+    }
+    .main-content {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+        width: calc(100% - var(--sidebar-width));
+        margin-left: var(--sidebar-width);
+        position: absolute;
+        right: 0;
+        padding: 0;
+    }
+    .content-container {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        width: 100%;
+        padding: 0 20px 20px;
+    }
+    .content-wrapper {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .card {
+        border-radius: 8px;
+        border: 1px solid rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        width: 100%;
+    }
+    .card-body {
+        padding: 16px;
+    }
+    .table th {
+        font-weight: 600;
+        color: var(--text-primary);
+        border-top: none;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .table td {
+        vertical-align: middle;
+    }
+    .badge {
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        display: inline-block;
+        line-height: 1;
+        text-align: center;
+        min-width: 60px;
+    }
+    .pagination .page-link {
+        color: #333333;
+        padding: 6px 12px;
+        border-radius: 4px;
+        margin: 0 2px;
+    }
+    .pagination .page-item.active .page-link {
+        background-color: #333333;
+        border-color: #333333;
+        color: white;
+    }
+    .pagination .page-item.disabled .page-link {
+        color: #999999;
+    }
+    .bg-success {
+        background-color: #555555 !important;
+    }
+    .bg-primary {
+        background-color: #333333 !important;
+    }
+    .bg-warning {
+        background-color: #888888 !important;
+    }
+    .bg-info {
+        background-color: #777777 !important;
+    }
+    .bg-secondary {
+        background-color: #999999 !important;
+    }
+    .text-dark {
+        color: #333333 !important;
+    }
+    .text-success {
+        color: #555555 !important;
+    }
+    .text-danger {
+        color: #777777 !important;
+    }
+    
+    /* 自定义滚动条样式 */
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0,0,0,0.2) transparent;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: rgba(0,0,0,0.2);
+        border-radius: 6px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background-color: transparent;
+    }
+    
+    /* 响应式布局调整 */
+    @media (max-width: 768px) {
+        .main-content {
+            width: 100%;
+            margin-left: 0;
+        }
+        
+        .table-responsive {
+            border: 0;
+        }
+        
+        .card-body {
+            padding: 15px;
+        }
+        
+        td, th {
+            padding: 0.5rem;
+            white-space: nowrap;
+        }
+        
+        .badge {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            min-width: 50px;
+        }
+        
+        /* 确保表格在移动端仍可滚动 */
+        .table {
+            min-width: 600px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 引入通用侧边栏组件 -->
+{% include "components/sidebar.html" with active_namespace="credits" %}
+
+<!-- 主内容区 -->
+<div class="main-content" id="mainContent">
+    <!-- 头部 -->
+    <div class="header">
+        <div class="header-left">
+            <a href="{% url 'credits:dashboard' %}" class="back-button" title="返回积分首页">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h5 class="mb-0">积分记录</h5>
+        </div>
+    </div>
+
+    <!-- 内容区域 -->
+    <div class="content-container custom-scrollbar">
+        <div class="content-wrapper">
+            <!-- 积分记录 -->
+            <div class="card">
+                <div class="card-body">
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>类型</th>
+                                        <th>变动</th>
+                                        <th>描述</th>
+                                        <th>余额</th>
+                                        <th>日期</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in page_obj %}
+                                        <tr>
+                                            <td>
+                                                {% if record.record_type == 'sign_in' %}
+                                                    <span class="badge bg-success">签到</span>
+                                                {% elif record.record_type == 'charge' %}
+                                                    <span class="badge bg-primary">充值</span>
+                                                {% elif record.record_type == 'usage' %}
+                                                    <span class="badge bg-warning text-dark">使用</span>
+                                                {% elif record.record_type == 'admin' %}
+                                                    <span class="badge bg-info">管理</span>
+                                                {% elif record.record_type == 'reward' %}
+                                                    <span class="badge bg-success">奖励</span>
+                                                {% elif record.record_type == 'refund' %}
+                                                    <span class="badge bg-secondary">退款</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="{% if record.credit_change > 0 %}text-success{% else %}text-danger{% endif %}">
+                                                {{ record.credit_change }}
+                                            </td>
+                                            <td>{{ record.description }}</td>
+                                            <td>{{ record.balance }}</td>
+                                            <td>{{ record.created_at|date:"Y-m-d H:i" }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- 分页 -->
+                        {% if page_obj.has_other_pages %}
+                            <nav aria-label="Page navigation" class="mt-4">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=1" aria-label="First">
+                                                <span aria-hidden="true">&laquo;&laquo;</span>
+                                            </a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                                <span aria-hidden="true">&laquo;</span>
+                                            </a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <a class="page-link" href="#" aria-label="First">
+                                                <span aria-hidden="true">&laquo;&laquo;</span>
+                                            </a>
+                                        </li>
+                                        <li class="page-item disabled">
+                                            <a class="page-link" href="#" aria-label="Previous">
+                                                <span aria-hidden="true">&laquo;</span>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if page_obj.number == num %}
+                                            <li class="page-item active"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                            <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                                <span aria-hidden="true">&raquo;</span>
+                                            </a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="Last">
+                                                <span aria-hidden="true">&raquo;&raquo;</span>
+                                            </a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <a class="page-link" href="#" aria-label="Next">
+                                                <span aria-hidden="true">&raquo;</span>
+                                            </a>
+                                        </li>
+                                        <li class="page-item disabled">
+                                            <a class="page-link" href="#" aria-label="Last">
+                                                <span aria-hidden="true">&raquo;&raquo;</span>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-scroll text-muted fa-3x mb-3"></i>
+                            <p class="text-muted mb-0">暂无积分记录</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // 加载用户积分信息
+    function loadUserCredits() {
+        fetch('/credits/api/user-credits/')
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById('user-credits').textContent = data.credits;
+                } else {
+                    document.getElementById('user-credits').textContent = '--';
+                }
+            })
+            .catch(error => {
+                console.error('获取积分信息失败:', error);
+                document.getElementById('user-credits').textContent = '获取失败';
+            });
+    }
+    
+    // 页面加载时获取积分
+    loadUserCredits();
+    
+    // 定时更新积分信息（每5分钟）
+    setInterval(loadUserCredits, 5 * 60 * 1000);
+    
+    // 侧边栏遮罩层修复
+    const overlay = document.querySelector('.sidebar-overlay');
+    const sidebar = document.querySelector('.sidebar');
+    
+    if (overlay && sidebar) {
+        // 确保overlay能够点击并正确关闭侧边栏
+        overlay.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // 关闭侧边栏
+            sidebar.classList.add('sidebar-collapsed');
+            sidebar.classList.remove('sidebar-active');
+            
+            // 隐藏遮罩层
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 300);
+            
+            // 恢复背景滚动
+            document.body.style.overflow = '';
+        });
+    }
+});
+</script>
+{% endblock %} 

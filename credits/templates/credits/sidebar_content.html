@@ -1,0 +1,194 @@
+{% comment %}
+积分中心应用特定的侧边栏内容
+{% endcomment %}
+
+<!-- 积分统计区域 -->
+<div class="credits-summary-section">
+    <div class="section-header">
+        <div class="section-title">积分统计</div>
+    </div>
+    
+    <div class="credits-summary px-3 py-2">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span>当前积分</span>
+            <span style="font-weight: bold; color: #4a5696;">{{ profile.credits }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span>总共获得</span>
+            <span style="color: #28a745;">+{{ total_earned }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+            <span>总共消费</span>
+            <span style="color: #dc3545;">-{{ total_spent }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- 最近积分记录区域 -->
+<div class="recent-records-section">
+    <div class="section-header d-flex justify-content-between align-items-center">
+        <div class="section-title">最近记录</div>
+        <a href="{% url 'credits:credit_records' %}" class="view-all-link" title="查看全部">
+            <i class="fas fa-external-link-alt"></i>
+        </a>
+    </div>
+    
+    <div class="recent-records-list custom-scrollbar">
+        {% if credit_records %}
+            {% for record in credit_records %}
+            <div class="record-item px-3 py-2">
+                <div class="d-flex justify-content-between">
+                    <div class="record-type">{{ record.get_record_type_display }}</div>
+                    <div class="record-amount {% if record.credit_change > 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if record.credit_change > 0 %}+{% endif %}{{ record.credit_change }}
+                    </div>
+                </div>
+                <div class="record-time small text-muted">{{ record.created_at|date:"Y-m-d H:i" }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="p-3 text-center text-muted">
+                <small>暂无积分记录</small>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 快速充值区域 -->
+<div class="quick-recharge-section">
+    <div class="section-header">
+        <div class="section-title">快速充值</div>
+    </div>
+    
+    <div class="quick-recharge-options px-3 py-2">
+        <div class="row g-2">
+            {% for option in quick_recharge_options %}
+            <div class="col-6">
+                <a href="{% url 'credits:recharge' %}?amount={{ option.amount }}" class="quick-recharge-option">
+                    <div class="amount">{{ option.amount }}元</div>
+                    {% if option.bonus %}
+                    <div class="bonus">+{{ option.bonus }}</div>
+                    {% endif %}
+                </a>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="empty-options">
+                    <i class="fas fa-coins"></i>
+                    <small>暂无充值选项</small>
+                </div>
+            </div>
+            {% endfor %}
+            <div class="col-12 mt-2">
+                <a href="{% url 'credits:recharge' %}" class="btn-recharge">
+                    <i class="fas fa-plus-circle me-1"></i> 前往充值中心
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.recent-records-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.recent-records-section {
+    margin-bottom: 20px;
+}
+
+.quick-recharge-section {
+    margin-bottom: 20px;
+}
+
+/* 确保在小屏幕设备上滚动正常 */
+@media (max-height: 700px) {
+    .sidebar {
+        overflow-y: auto;
+    }
+    
+    .recent-records-list {
+        max-height: 150px;
+    }
+}
+
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,0,0,0.2) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(0,0,0,0.2);
+    border-radius: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background-color: transparent;
+}
+
+.quick-recharge-option {
+    display: block;
+    text-align: center;
+    padding: 10px;
+    border-radius: 8px;
+    background-color: rgba(74, 86, 150, 0.08);
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: all 0.3s;
+}
+
+.quick-recharge-option:hover {
+    background-color: rgba(74, 86, 150, 0.15);
+    transform: translateY(-2px);
+    text-decoration: none;
+    color: var(--primary-color);
+}
+
+.quick-recharge-option .amount {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.quick-recharge-option .bonus {
+    font-size: 0.8rem;
+    color: #EF476F;
+}
+
+.btn-recharge {
+    display: block;
+    text-align: center;
+    padding: 8px;
+    border-radius: 8px;
+    background-color: var(--primary-color);
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.btn-recharge:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-2px);
+    text-decoration: none;
+    color: white;
+}
+
+.empty-options {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px;
+    color: var(--text-secondary);
+}
+
+.empty-options i {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+</style> 

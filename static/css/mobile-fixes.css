@@ -1,0 +1,88 @@
+/* 移动端样式修复 */
+
+/* 修复移动端侧边栏 */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: -300px;
+        transition: left 0.3s ease;
+        z-index: 1030;
+    }
+    
+    .sidebar.sidebar-active {
+        left: 0;
+    }
+    
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1020;
+    }
+    
+    .sidebar-overlay.active {
+        display: block;
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+}
+
+/* 改善移动端输入区域 */
+@media (max-width: 768px) {
+    .chat-input-container {
+        padding: 8px;
+    }
+    
+    .chat-input {
+        padding: 8px 10px;
+        font-size: 14px;
+    }
+    
+    .chat-actions {
+        flex-wrap: wrap;
+    }
+    
+    .message-bubble {
+        max-width: 90%;
+    }
+}
+
+/* 修复移动端代码显示 */
+@media (max-width: 768px) {
+    pre {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+    
+    .code-copy-btn {
+        padding: 2px 5px !important;
+        font-size: 10px !important;
+    }
+}
+
+/* 优化移动端消息显示 */
+@media (max-width: 768px) {
+    .message-container {
+        padding: 8px 5px;
+    }
+    
+    .message-avatar img {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .message-info {
+        font-size: 12px;
+    }
+    
+    .message-content {
+        font-size: 14px;
+    }
+} 

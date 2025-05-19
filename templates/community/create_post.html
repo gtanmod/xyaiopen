@@ -1,0 +1,310 @@
+
+{% extends 'base.html' %}
+
+{% block title %}发布新帖子 - 小羊系统{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/community.css">
+{% endblock %}
+
+{% block content %}
+<div class="sidebar" id="sidebar">
+    <!-- 应用区域 -->
+    <div class="app-section">
+        <div class="app-title">应用</div>
+        <div class="app-list">
+            <!-- 聊天应用 -->
+            <a href="{% url 'chat:latest_conversation' %}" class="app-item {% if request.resolver_match.namespace == 'chat' %}active{% endif %}">
+                <i class="fas fa-comment-dots"></i>
+                <span>ChatGPT</span>
+            </a>
+           
+            <!-- 社区讨论 -->
+            <a href="{% url 'community:post_list' %}" class="app-item active">
+                <i class="fas fa-comments"></i>
+                <span>社区讨论</span>
+            </a>
+            
+            <!-- 其他应用 -->
+          
+        </div>
+    </div>
+    
+    <!-- 设置区域 -->
+    <div class="settings-container">
+        <div class="user-menu" style="white-space: nowrap !important; display: flex !important; align-items: center !important; justify-content: space-between !important; flex-wrap: nowrap !important; overflow: hidden !important;">
+            <div class="left-content" style="flex: 1 1 auto; min-width: 0; margin-right: 4px; overflow: hidden;">
+                <i class="fas fa-user-circle"></i>
+                <span class="ms-2">{{ request.user.username }}</span>
+                <span class="user-initials" style="display: none;">{{ request.user.username|slice:":2" }}</span>
+            </div>
+            <div class="dropdown settings-dropdown" style="flex: 0 0 auto; margin-left: auto;">
+                <button class="action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="设置" style="padding: 0 4px; display: flex !important; align-items: center !important; justify-content: center !important; min-width: 24px;">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-dark dropup-menu dropdown-menu-end">
+                    <li>
+                        <button class="dropdown-item" type="button">
+                            <i class="fas fa-user me-2"></i> 个人资料
+                        </button>
+                    </li>
+                    <li>
+                        <button class="dropdown-item" type="button">
+                            <i class="fas fa-sliders-h me-2"></i> 设置
+                        </button>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="{% url 'logout' %}">
+                            <i class="fas fa-sign-out-alt me-2"></i> 退出登录
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 侧边栏遮罩层 - 当侧边栏打开时显示 -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- 主内容区 -->
+<div class="main-content" id="mainContent">
+    <!-- 头部 -->
+    <div class="header">
+        <button class="toggle-sidebar" id="toggleSidebarBtn">
+            <i class="fas fa-bars" id="sidebarIcon"></i>
+        </button>
+        <h1 class="header-title">发布新帖子</h1>
+    </div>
+
+    <div class="chat-container custom-scrollbar">
+        <div class="create-post-container">
+            <!-- 返回链接 -->
+            <a href="{% url 'community:post_list' %}" class="back-to-list">
+                <i class="fas fa-arrow-left"></i> 返回帖子列表
+            </a>
+            
+            <!-- 创建帖子表单 -->
+            <div class="create-post-card">
+                <h1 class="create-post-title">发布新帖子</h1>
+                
+                <!-- 错误消息展示 -->
+                {% if messages %}
+                    <div class="alert alert-danger">
+                        {% for message in messages %}
+                            {{ message }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <!-- 表单 -->
+                <form method="post" action="{% url 'community:create_post' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label for="title" class="form-label">标题</label>
+                        <input type="text" id="title" name="title" class="form-control" placeholder="请输入帖子标题" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="content" class="form-label">内容</label>
+                        <textarea id="content" name="content" class="form-control post-content-textarea" placeholder="请输入帖子内容，支持Markdown格式" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="post_image" class="form-label">帖子图片</label>
+                        <div class="image-upload-container">
+                            <div class="image-preview-wrapper" id="imagePreview">
+                                <img src="/static/images/default-post.svg" alt="图片预览" class="img-preview">
+                            </div>
+                            <div class="image-upload-controls">
+                                <input type="file" id="post_image" name="post_image" class="form-control-file" accept="image/*">
+                                <small class="form-text text-muted">支持JPG、PNG、SVG格式，建议尺寸800x600，文件大小不超过2MB</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="content_help" class="form-label">编辑器帮助</label>
+                        <div class="editor-toolbar">
+                            <button type="button" class="toolbar-btn" data-format="bold" title="粗体">B</button>
+                            <button type="button" class="toolbar-btn" data-format="italic" title="斜体">I</button>
+                            <button type="button" class="toolbar-btn" data-format="heading" title="标题">H</button>
+                            <button type="button" class="toolbar-btn" data-format="link" title="链接">链接</button>
+                            <button type="button" class="toolbar-btn" data-format="image" title="图片">图片</button>
+                            <button type="button" class="toolbar-btn" data-format="list" title="列表">列表</button>
+                            <button type="button" class="toolbar-btn" data-format="code" title="代码">代码</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <a href="{% url 'community:post_list' %}" class="cancel-btn">取消</a>
+                        <button type="submit" class="create-post-btn">发布帖子</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/community.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 图片上传预览
+        const imageInput = document.getElementById('post_image');
+        const imagePreview = document.getElementById('imagePreview').querySelector('img');
+        
+        imageInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                };
+                
+                reader.readAsDataURL(this.files[0]);
+            } else {
+                imagePreview.src = '/static/images/default-post.svg';
+            }
+        });
+        
+        // 编辑器工具栏功能
+        const contentTextarea = document.getElementById('content');
+        const toolbarButtons = document.querySelectorAll('.toolbar-btn');
+        
+        toolbarButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const format = this.getAttribute('data-format');
+                const textarea = contentTextarea;
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const selectedText = textarea.value.substring(start, end);
+                let replacement = '';
+                
+                switch(format) {
+                    case 'bold':
+                        replacement = `**${selectedText || '粗体文本'}**`;
+                        break;
+                    case 'italic':
+                        replacement = `*${selectedText || '斜体文本'}*`;
+                        break;
+                    case 'heading':
+                        replacement = `## ${selectedText || '标题'}`;
+                        break;
+                    case 'link':
+                        replacement = `[${selectedText || '链接文本'}](https://example.com)`;
+                        break;
+                    case 'image':
+                        replacement = `![${selectedText || '图片描述'}](https://example.com/image.jpg)`;
+                        break;
+                    case 'list':
+                        replacement = `\n- ${selectedText || '列表项1'}\n- 列表项2\n- 列表项3`;
+                        break;
+                    case 'code':
+                        replacement = `\`\`\`\n${selectedText || '代码块'}\n\`\`\``;
+                        break;
+                }
+                
+                textarea.focus();
+                
+                // 插入文本
+                if (typeof textarea.setRangeText === 'function') {
+                    textarea.setRangeText(replacement);
+                    // 设置光标位置
+                    const newPosition = start + replacement.length;
+                    textarea.setSelectionRange(newPosition, newPosition);
+                } else {
+                    // 兼容不支持setRangeText的浏览器
+                    const value = textarea.value;
+                    textarea.value = value.substring(0, start) + replacement + value.substring(end);
+                    // 设置光标位置
+                    const newPosition = start + replacement.length;
+                    textarea.setSelectionRange(newPosition, newPosition);
+                }
+            });
+        });
+        
+        // Markdown提示
+        contentTextarea.addEventListener('focus', function() {
+            const helperText = document.createElement('div');
+            helperText.className = 'markdown-helper';
+            helperText.innerHTML = `
+                <small class="text-muted">
+                    Markdown语法提示：<br>
+                    # 一级标题 | ## 二级标题<br>
+                    **粗体** | *斜体* | ~~删除线~~<br>
+                    [链接](URL) | ![图片](URL)<br>
+                    - 无序列表 | 1. 有序列表<br>
+                    > 引用文本<br>
+                    \`\`\`代码块\`\`\`<br>
+                </small>
+            `;
+            
+            if (!document.querySelector('.markdown-helper')) {
+                this.parentNode.appendChild(helperText);
+            }
+        });
+        
+        // 侧边栏切换功能
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+        const mainContent = document.getElementById('mainContent');
+        const sidebarIcon = document.getElementById('sidebarIcon');
+        
+        // 在移动设备上默认收起侧边栏
+        function checkMobileAndCollapseSidebar() {
+            if (window.innerWidth <= 768) {
+                if (sidebar && !sidebar.classList.contains('sidebar-collapsed')) {
+                    sidebar.classList.add('sidebar-collapsed');
+                    if (mainContent) {
+                        mainContent.classList.add('main-content-expanded');
+                    }
+                    if (sidebarIcon) {
+                        sidebarIcon.classList.remove('fa-bars');
+                        sidebarIcon.classList.add('fa-expand');
+                    }
+                }
+            }
+        }
+        
+        // 页面加载时检查
+        checkMobileAndCollapseSidebar();
+        
+        // 窗口大小改变时检查
+        window.addEventListener('resize', checkMobileAndCollapseSidebar);
+        
+        // 切换侧边栏
+        if (toggleSidebarBtn && sidebar && sidebarIcon) {
+            toggleSidebarBtn.addEventListener('click', function() {
+                sidebar.classList.toggle('sidebar-collapsed');
+                mainContent.classList.toggle('main-content-expanded');
+                
+                if (sidebar.classList.contains('sidebar-collapsed')) {
+                    sidebarIcon.classList.remove('fa-bars');
+                    sidebarIcon.classList.add('fa-expand');
+                } else {
+                    sidebarIcon.classList.remove('fa-expand');
+                    sidebarIcon.classList.add('fa-bars');
+                }
+            });
+        }
+        
+        // 点击遮罩层关闭侧边栏
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', function() {
+                sidebar.classList.add('sidebar-collapsed');
+                mainContent.classList.add('main-content-expanded');
+                
+                if (sidebarIcon) {
+                    sidebarIcon.classList.remove('fa-bars');
+                    sidebarIcon.classList.add('fa-expand');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,156 @@
+/**
+ * 积分系统样式
+ */
+
+/* 卡片阴影效果 */
+.card.shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+    transition: box-shadow 0.3s ease;
+}
+
+.card.shadow-sm:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 积分信息卡片 */
+.credits-card {
+    border-radius: 10px;
+    overflow: hidden;
+    border: none;
+}
+
+.credits-card .card-header {
+    background-color: #4a6cf7;
+    color: #fff;
+    border: none;
+}
+
+.credits-amount {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #4a6cf7;
+}
+
+/* 签到卡片 */
+.sign-in-card {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.sign-in-days {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #4a6cf7;
+}
+
+.sign-in-credits {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #ff6b6b;
+}
+
+/* 积分记录表格 */
+.table-credits th {
+    border-top: none;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+}
+
+.table-credits td, .table-credits th {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+}
+
+.credit-change-positive {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.credit-change-negative {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+/* 充值选项 */
+.recharge-option {
+    cursor: pointer;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.recharge-option:hover {
+    border-color: #6c757d;
+    transform: translateY(-2px);
+}
+
+.recharge-option.active {
+    border-color: #4a6cf7;
+    background-color: rgba(74, 108, 247, 0.05);
+}
+
+.recharge-option .amount {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #4a6cf7;
+}
+
+.recharge-option .credits {
+    color: #6c757d;
+}
+
+/* 支付方式 */
+.payment-method {
+    cursor: pointer;
+    padding: 10px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s;
+}
+
+.payment-method:hover {
+    border-color: #6c757d;
+    transform: translateY(-2px);
+}
+
+.payment-method.active {
+    border-color: #4a6cf7;
+    background-color: rgba(74, 108, 247, 0.05);
+}
+
+.payment-method img {
+    width: 32px;
+    height: 32px;
+    margin-right: 10px;
+}
+
+/* 支付确认页面 */
+.qr-code-container {
+    text-align: center;
+    padding: 20px;
+    border: 1px dashed #dee2e6;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.qr-code-container img {
+    max-width: 200px;
+    height: auto;
+}
+
+.transaction-code {
+    font-family: monospace;
+    font-size: 1.1rem;
+    background: #e9ecef;
+    padding: 5px 10px;
+    border-radius: 4px;
+}
+
+#paymentTimer {
+    color: #dc3545;
+    font-weight: bold;
+} 

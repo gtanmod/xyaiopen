@@ -1,0 +1,165 @@
+/* 图片相关样式 */
+.markdown-image-container {
+    margin: 20px auto;
+    max-width: 100%;
+    text-align: center;
+    position: relative;
+}
+
+.markdown-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.markdown-image:hover {
+    transform: scale(1.01);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.markdown-image[data-sediment] {
+    min-height: 200px;
+    min-width: 200px;
+    background-color: #f8f9fa;
+    border: 1px dashed #dee2e6;
+    padding: 10px;
+    position: relative;
+}
+
+.markdown-image[data-sediment]::after {
+    content: "加载中...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.image-caption {
+    margin-top: 8px;
+    font-size: 0.9em;
+    color: #666;
+    text-align: center;
+}
+
+/* 图片模态框样式 */
+.image-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    cursor: zoom-out;
+}
+
+.image-modal img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 图片生成中状态样式 */
+.image-generation-pending {
+    margin: 20px auto;
+    padding: 15px;
+    border: 1px dashed #ccc;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    text-align: center;
+}
+
+.image-generation-status {
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #555;
+}
+
+.image-generation-prompt {
+    font-style: italic;
+    color: #777;
+}
+
+/* sediment协议图片加载状态 */
+.sediment-loading {
+    position: relative;
+    min-height: 200px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px dashed #dee2e6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 15px 0;
+    padding: 20px;
+}
+
+.sediment-loading-text {
+    margin-bottom: 10px;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.sediment-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #5652BF;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 生成中动画样式增强 */
+.generating-container {
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px dashed #dee2e6;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-width: 512px;
+}
+
+.generating-text {
+    margin-bottom: 15px;
+    color: #5652BF;
+    font-weight: 500;
+}
+
+.generating-dots {
+    display: flex;
+    align-items: center;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    margin: 0 3px;
+    background-color: #5652BF;
+    border-radius: 50%;
+    display: inline-block;
+    opacity: 0.6;
+}
+
+.dot1 { animation: dot-animation 1.4s infinite ease-in-out; }
+.dot2 { animation: dot-animation 1.4s 0.2s infinite ease-in-out; }
+.dot3 { animation: dot-animation 1.4s 0.4s infinite ease-in-out; } 

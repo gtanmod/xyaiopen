@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景 -->
+  <rect width="512" height="512" fill="#f8f9fa" rx="10" ry="10" />
+
+  <!-- 装饰图案 -->
+  <path d="M0,256 L512,256" stroke="#e9ecef" stroke-width="2" stroke-dasharray="10,10" />
+  <path d="M256,0 L256,512" stroke="#e9ecef" stroke-width="2" stroke-dasharray="10,10" />
+
+  <!-- 图片占位框 -->
+  <rect x="156" y="156" width="200" height="160" rx="8" ry="8" fill="none" stroke="#dc3545" stroke-width="4" stroke-dasharray="10,10" />
+
+  <!-- 错误图标 -->
+  <circle cx="256" cy="236" r="60" fill="none" stroke="#dc3545" stroke-width="8" />
+  <path d="M226,206 L286,266 M286,206 L226,266" stroke="#dc3545" stroke-width="8" stroke-linecap="round" />
+
+  <!-- 文字 -->
+  <text x="256" y="350" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="#dc3545">图片加载失败</text>
+  <text x="256" y="380" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#6c757d">请检查图片链接或稍后重试</text>
+</svg> 

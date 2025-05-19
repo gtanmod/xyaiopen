@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}充值记录 - 小羊系统{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/credits.css' %}">
+<style>
+    /* 自适应样式 */
+    .main-content {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+        width: calc(100% - var(--sidebar-width));
+        margin-left: var(--sidebar-width);
+        position: absolute;
+        right: 0;
+        padding: 0;
+    }
+    
+    .header {
+        height: var(--header-height);
+        display: flex;
+        align-items: center;
+        padding: 0 15px;
+        background-color: var(--bg-main);
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+        width: 100%;
+    }
+    
+    .content-container {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        width: 100%;
+        padding: 0 20px 20px;
+    }
+    
+    .content-wrapper {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .card {
+        width: 100%;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    
+    /* 自定义滚动条样式 */
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0,0,0,0.2) transparent;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: rgba(0,0,0,0.2);
+        border-radius: 6px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background-color: transparent;
+    }
+    
+    /* 响应式布局调整 */
+    @media (max-width: 768px) {
+        .main-content {
+            width: 100%;
+            margin-left: 0;
+        }
+        
+        .table-responsive {
+            border: 0;
+        }
+        
+        .card-body {
+            padding: 15px;
+        }
+        
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        .header-title {
+            font-size: 1.5rem;
+        }
+        
+        td, th {
+            padding: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 引入通用侧边栏组件 -->
+{% include "components/sidebar.html" with active_namespace="credits" %}
+
+<!-- 主内容区 -->
+<div class="main-content" id="mainContent">
+    <!-- 头部 -->
+    <div class="header">
+        <div class="d-flex align-items-center">
+            <button class="toggle-sidebar" id="toggleSidebarBtn">
+                <i class="fas fa-bars" id="sidebarIcon"></i>
+            </button>
+            <h5 class="header-title mb-0">充值记录</h5>
+        </div>
+    </div>
+
+    <!-- 内容区域 -->
+    <div class="content-container custom-scrollbar">
+        <div class="content-wrapper">
+            <!-- 充值记录 -->
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">充值记录</h5>
+                    <a href="{% url 'credits:recharge' %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus-circle"></i> 充值积分
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>交易码</th>
+                                        <th>金额</th>
+                                        <th>积分</th>
+                                        <th>状态</th>
+                                        <th>支付方式</th>
+                                        <th>时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in page_obj %}
+                                        <tr>
+                                            <td>{{ record.transaction_code }}</td>
+                                            <td>{{ record.amount }}</td>
+                                            <td>{{ record.credits }}</td>
+                                            <td>
+                                                {% if record.status == 'pending' %}
+                                                    <span class="badge bg-warning text-dark">待处理</span>
+                                                {% elif record.status == 'approved' %}
+                                                    <span class="badge bg-success">已通过</span>
+                                                {% elif record.status == 'rejected' %}
+                                                    <span class="badge bg-danger">已拒绝</span>
+                                                {% elif record.status == 'canceled' %}
+                                                    <span class="badge bg-secondary">已取消</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ record.payment_method }}</td>
+                                            <td>{{ record.created_at|date:"Y-m-d H:i" }}</td>
+                                            <td>
+                                                {% if record.status == 'pending' %}
+                                                    <a href="{% url 'credits:payment_confirm' record.id %}" class="btn btn-sm btn-outline-primary">
+                                                        支付
+                                                    </a>
+                                                    <form method="post" action="{% url 'credits:cancel_payment' record.id %}" class="d-inline">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定要取消该订单吗？')">
+                                                            取消
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- 分页 -->
+                        {% if page_obj.has_other_pages %}
+                            <nav aria-label="Page navigation" class="mt-4">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=1" aria-label="First">
+                                                <span aria-hidden="true">&laquo;&laquo;</span>
+                                            </a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                                <span aria-hidden="true">&laquo;</span>
+                                            </a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <a class="page-link" href="#" aria-label="First">
+                                                <span aria-hidden="true">&laquo;&laquo;</span>
+                                            </a>
+                                        </li>
+                                        <li class="page-item disabled">
+                                            <a class="page-link" href="#" aria-label="Previous">
+                                                <span aria-hidden="true">&laquo;</span>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if page_obj.number == num %}
+                                            <li class="page-item active"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                            <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                                <span aria-hidden="true">&raquo;</span>
+                                            </a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="Last">
+                                                <span aria-hidden="true">&raquo;&raquo;</span>
+                                            </a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <a class="page-link" href="#" aria-label="Next">
+                                                <span aria-hidden="true">&raquo;</span>
+                                            </a>
+                                        </li>
+                                        <li class="page-item disabled">
+                                            <a class="page-link" href="#" aria-label="Last">
+                                                <span aria-hidden="true">&raquo;&raquo;</span>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-receipt text-muted fs-1 mb-3"></i>
+                            <p class="text-muted">暂无充值记录</p>
+                            <a href="{% url 'credits:recharge' %}" class="btn btn-primary mt-2">
+                                <i class="fas fa-plus-circle"></i> 充值积分
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

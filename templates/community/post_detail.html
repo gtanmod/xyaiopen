@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ post.title }} - 小羊系统{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/community.css">
+{% endblock %}
+
+{% block content %}
+<!-- 引入通用侧边栏组件 -->
+{% include "components/sidebar.html" with active_namespace="community" %}
+
+<!-- 主内容区 -->
+<div class="main-content" id="mainContent">
+    <!-- 头部 -->
+    <div class="header">
+        <button class="toggle-sidebar" id="toggleSidebarBtn">
+            <i class="fas fa-bars" id="sidebarIcon"></i>
+        </button>
+        <h1 class="header-title">帖子详情</h1>
+    </div>
+
+    <div class="chat-container custom-scrollbar">
+        <div class="post-detail-container">
+            <!-- 返回链接 -->
+            <a href="{% url 'community:post_list' %}" class="back-to-list">
+                <i class="fas fa-arrow-left"></i> 返回帖子列表
+            </a>
+            
+            <!-- 帖子详情卡片 -->
+            <div class="post-detail-card">
+                <div class="post-detail-header">
+                    <h1 class="post-detail-title">{{ post.title }}</h1>
+                    <div class="post-detail-meta">
+                        <div class="post-detail-author">
+                            <span>{{ post.author.username }}</span>
+                        </div>
+                        <div>
+                            <span>{{ post.created_at|date:"Y-m-d H:i" }}</span>
+                            <span class="ms-2"><i class="far fa-eye"></i> {{ post.views }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if post.image %}
+                <div class="post-detail-image">
+                    <img src="/media/{{ post.image }}" alt="{{ post.title }}">
+                </div>
+                {% endif %}
+                
+                <div class="post-detail-content">
+                    {{ post.get_markdown_content }}
+                </div>
+                
+                <div class="post-detail-actions">
+                    <div>
+                        <form method="post" action="{% url 'community:toggle_like' post.id %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="post-action-btn {% if user_liked %}active{% endif %}">
+                                <i class="{% if user_liked %}fas{% else %}far{% endif %} fa-heart"></i> 
+                                <span>{{ post.likes.count }}</span>
+                            </button>
+                        </form>
+                    </div>
+                    <div>
+                        <button class="post-action-btn scroll-to-comments">
+                            <i class="far fa-comment"></i> 评论 ({{ post.comments.count }})
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 评论区 -->
+            <div class="comments-section" id="comments">
+                <h2 class="comments-header">评论 ({{ comments|length }})</h2>
+                
+                <!-- 评论列表 -->
+                <div class="comment-list">
+                    {% if comments %}
+                        {% for comment in comments %}
+                        <div class="comment-card">
+                            <div class="comment-header">
+                                <div class="comment-author">{{ comment.author.username }}</div>
+                                <div class="comment-time">{{ comment.created_at|date:"Y-m-d H:i" }}</div>
+                            </div>
+                            <div class="comment-content">
+                                {{ comment.content|linebreaksbr }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-comments">
+                            <p>暂无评论，来发表第一条评论吧！</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- 添加评论表单 -->
+                {% if user.is_authenticated %}
+                <div class="comment-form">
+                    <h3 class="comment-form-title">发表评论</h3>
+                    <form method="post" action="{% url 'community:add_comment' post.id %}">
+                        {% csrf_token %}
+                        <textarea name="content" class="comment-input" placeholder="写下你的评论..." required></textarea>
+                        <button type="submit" class="comment-submit">发表评论</button>
+                    </form>
+                </div>
+                {% else %}
+                <div class="comment-form">
+                    <div class="text-center py-3">
+                        <p>请先<a href="{% url 'login' %}?next={{ request.path }}">登录</a>后再发表评论</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/community.js"></script>
+{% endblock %} 

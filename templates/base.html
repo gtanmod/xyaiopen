@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}小羊系统{% endblock %}</title>
+    
+    <!-- PWA 相关元标签 -->
+    <meta name="theme-color" content="#333333">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="小羊系统">
+    <meta name="application-name" content="小羊系统">
+    <meta name="description" content="小羊系统 - 为您提供智能服务">
+    
+    <!-- PWA 图标和启动屏幕 -->
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" href="/static/images/logo.png">
+    <link rel="apple-touch-icon" href="/static/images/logo.png">
+    <link rel="apple-touch-startup-image" href="/static/images/logo.png">
+    
+    <!-- PWA 样式表 -->
+    <link rel="stylesheet" href="/static/css/pwa-styles.css">
+    
+    <!-- 移动端优化样式 -->
+    <link rel="stylesheet" href="/static/css/mobile-fixes.css">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for code highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --sidebar-width: 250px;
+            --header-height: 60px;
+            --footer-height: 60px;
+            --primary-color: #333333;
+            --secondary-color: #bbd3ff;
+            --light-accent: #f2f7ff;
+            --dark-accent: #3a4676;
+            --bg-main: #fff;
+            --bg-secondary: #f5f6fa;
+            --text-primary: #333;
+            --text-secondary: #6e7081;
+            --border-color: rgba(0,0,0,0.05);
+        }
+        
+        /* 修复下拉菜单在容器内被限制的问题 */
+        .dropdown-menu {
+            position: fixed !important;
+            z-index: 9999 !important;
+        }
+        
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0,0,0,0.2) transparent;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 6px;
+        }
+        
+        .app-container {
+            height: 100vh;
+            display: flex; 
+        }
+        
+        /* 侧边栏样式被移动到了sidebar.html组件中 */
+        
+        /* 主内容样式 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            margin-left: var(--sidebar-width);
+            transition: margin-left 0.3s ease;
+            width: calc(100% - var(--sidebar-width));
+            position: absolute;
+            right: 0;
+        }
+        
+        .main-content-expanded {
+            margin-left: 0;
+            width: 100%;
+        }
+        
+        .header {
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            background-color: var(--bg-main);
+            position: relative;
+            z-index: 10;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        /* 头部左侧区域 */
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+        
+        /* 头部右侧区域 - 用户信息 */
+        .header-right {
+            display: flex;
+            align-items: center;
+        }
+        
+        /* 用户头像样式 */
+        .header-avatar {
+            width: 36px;
+            height: 36px;
+            background-color: #000000;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .header-avatar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .header-user-menu {
+            position: relative;
+        }
+        
+        .header-dropdown-menu {
+            position: absolute;
+            top: 45px;
+            right: 0;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-width: 180px;
+            z-index: 1000;
+            overflow: hidden;
+            display: none;
+        }
+        
+        .header-dropdown-menu.show {
+            display: block;
+        }
+        
+        .header-dropdown-item {
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            color: #494949;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+        
+        .header-dropdown-item:hover {
+            background-color: rgba(0,0,0,0.05);
+            color: #333;
+        }
+        
+        .header-dropdown-item i {
+            margin-right: 10px;
+            width: 16px;
+            text-align: center;
+        }
+        
+        .header-dropdown-divider {
+            height: 1px;
+            background-color: rgba(0,0,0,0.1);
+            margin: 4px 0;
+        }
+        
+        .toggle-sidebar {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .toggle-sidebar:hover {
+            background-color: rgba(0,0,0,0.05);
+        }
+        
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            background-color: var(--bg-main);
+            scroll-behavior: smooth;
+        }
+        
+        /* 消息样式改进 */
+        .message-container {
+            display: flex;
+            margin-bottom: 24px;
+            gap: 16px;
+            max-width: 800px;
+        }
+        
+        .user-message {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+        
+        .user-message .message-info {
+            text-align: right;
+        }
+        
+        .user-message .message-content-wrapper {
+            flex: 1;
+            max-width: calc(100% - 52px);
+        }
+        
+        .user-message .message-content-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        
+        .message-avatar {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            background-color: #000000;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        
+        .assistant-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        .message-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        
+        .message-sender {
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .message-time {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .message-bubble {
+            position: relative;
+            padding: 16px;
+            border-radius: 12px;
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .user-message .message-bubble {
+            background-color: var(--bubble-user);
+            border-color: var(--bubble-user-border);
+        }
+        
+        .message-text {
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+        
+        .message-actions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .message-bubble:hover .message-actions {
+            opacity: 1;
+        }
+        
+        .action-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            padding: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .action-btn:hover {
+            background-color: rgba(0,0,0,0.05);
+            color: var(--text-primary);
+        }
+        
+        /* 加载动画改进 */
+        .loading-container {
+            display: flex;
+            margin-bottom: 24px;
+        }
+        
+        .thinking-dots {
+            display: flex;
+            gap: 4px;
+            padding: 8px;
+        }
+        
+        .thinking-dots div {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-secondary);
+            animation: dot-pulse 1.5s infinite ease-in-out;
+        }
+        
+        .thinking-dots div:nth-child(1) {
+            animation-delay: 0s;
+        }
+        
+        .thinking-dots div:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .thinking-dots div:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes dot-pulse {
+            0%, 100% { transform: scale(0.7); opacity: 0.5; }
+            50% { transform: scale(1); opacity: 1; }
+        }
+        
+        /* 输入区域改进 */
+        .input-container {
+            padding: 16px 24px 24px;
+            background-color: var(--bg-main);
+            position: relative;
+            box-sizing: border-box;
+            width: 100%;
+        }
+        
+        .input-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .message-actions-wrapper {
+            display: flex;
+            align-items: center;
+            background-color: var(--bg-main);
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            padding: 6px 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            width: 100%;
+        }
+        
+        .chat-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 0;
+            font-family: inherit;
+            font-size: 15px;
+            resize: none;
+            outline: none;
+            background-color: transparent;
+            min-height: 24px;
+            max-height: 200px;
+            line-height: 1.5;
+        }
+        
+        .chat-input:focus {
+            outline: none;
+            box-shadow: none;
+        }
+        
+        .attachment-buttons {
+            display: flex;
+            margin-right: 8px;
+            padding: 0 8px;
+        }
+        
+        .attachment-btn {
+            cursor: pointer;
+            color: #6e6e6e;
+            transition: color 0.2s;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+        }
+        
+        .attachment-btn:hover {
+            color: var(--primary-color);
+            background-color: #e0e0e0;
+        }
+        
+        .input-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 8px;
+        }
+        
+        .action-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            padding: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .action-btn:hover {
+            color: var(--primary-color);
+        }
+        
+        .send-btn {
+            position: relative;
+            right: 0;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .send-btn:hover {
+            background-color: var(--primary-hover);
+        }
+        
+        .disclaimer-text {
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: center;
+            width: 100%;
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* 首页和登录页样式 */
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f9ff;
+            padding: 24px;
+        }
+        
+        .auth-card {
+            width: 100%;
+            max-width: 400px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 32px;
+        }
+        
+        .auth-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        
+        .auth-subtitle {
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        
+        .landing-container {
+            min-height: 100vh;
+            background-color: #f0f9ff;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .landing-hero {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 24px;
+            text-align: center;
+        }
+        
+        .landing-title {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(to right, var(--primary-color), #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .landing-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin-bottom: 32px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+        
+        /* Markdown和代码高亮改进 */
+        .markdown-content pre {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 16px 0;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .markdown-content code {
+            font-family: 'Fira Code', 'JetBrains Mono', monospace;
+            font-size: 0.9em;
+        }
+        
+        .markdown-content p {
+            margin-bottom: 16px;
+        }
+        
+        .markdown-content p:last-child {
+            margin-bottom: 0;
+        }
+        
+        /* 侧边栏头部样式改进 */
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+        }
+        
+        /* 确保对话项目的宽度设置正确 */
+        .conversation-item .d-flex {
+            width: 100%;
+        }
+        
+        /* 调整图标和内容的间距 */
+        .conversation-item .d-flex .fas {
+            flex-shrink: 0;
+            width: 20px;
+            text-align: center;
+        }
+        
+        /* 在非折叠状态下添加间距 */
+        .sidebar:not(.sidebar-collapsed) .conversation-item .d-flex .fas {
+            margin-right: 10px;
+        }
+        
+        .sidebar:not(.sidebar-collapsed) .user-menu .fas {
+            margin-right: 10px;
+        }
+        
+        /* 标题容器样式 */
+        .title-container {
+            max-width: calc(100% - 30px);
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        
+        /* 确保在非折叠状态下，标题容器有足够的宽度 */
+        .sidebar:not(.sidebar-collapsed) .title-container {
+            min-width: 150px;
+        }
+        
+        .input-controls {
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            width: 100%;
+        }
+        
+        .attachments-preview {
+            background-color: rgba(0,0,0,0.05);
+            border-radius: 8px;
+            padding: 8px;
+        }
+        
+        /* PWA 全屏模式样式 */
+        body.pwa-standalone-mode {
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+        
+        /* iOS Safari 全屏模式的适配 */
+        @supports (-webkit-touch-callout: none) {
+            body.pwa-standalone-mode {
+                /* 确保内容不被底部导航栏遮挡 */
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+            
+            /* 确保头部内容不被刘海遮挡 */
+            body.pwa-standalone-mode .navbar-top {
+                padding-top: env(safe-area-inset-top);
+            }
+        }
+        
+        /* PWA 全屏模式下的专门样式 */
+        body.pwa-standalone-mode .main-content {
+            height: 100vh;  /* 确保内容区域占据整个屏幕高度 */
+        }
+        
+        body.pwa-standalone-mode .sidebar-collapsed {
+            transform: translateX(-100%);  /* 确保侧边栏完全隐藏 */
+        }
+        
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+                position: relative;
+                right: auto;
+            }
+            
+            /* 确保移动设备上的侧边栏切换按钮更明显 */
+            .toggle-sidebar {
+                width: 40px;
+                height: 40px;
+                background-color: rgba(0,0,0,0.05);
+            }
+            
+            /* 移动设备上扩展内容区域的内边距 */
+            .main-content-expanded .chat-container {
+                padding: 16px;
+            }
+            
+            .message-container {
+                gap: 12px;
+            }
+            
+            .input-wrapper {
+                max-width: 100%;
+                padding: 0 8px;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- 添加侧边栏遮罩层，用于移动设备上点击空白区域关闭侧边栏 -->
+        <div id="sidebarOverlay" class="sidebar-overlay"></div>
+        {% block content %}{% endblock %}
+    </div>
+    
+    <!-- JQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- jQuery防错脚本 -->
+    <script>
+        // 检查jQuery是否已加载，如果没有，尝试加载并提供替代方案
+        if (typeof jQuery === 'undefined') {
+            console.warn('jQuery尚未加载，尝试动态加载...');
+            
+            // 创建替代的$函数
+            window.$ = function(selector) {
+                if (typeof selector === 'function') {
+                    // 如果是$(document).ready()形式，转换为标准DOM方式
+                    document.addEventListener('DOMContentLoaded', selector);
+                    return;
+                }
+                
+                // 基本选择器功能
+                if (typeof selector === 'string') {
+                    return document.querySelector(selector);
+                }
+                
+                return selector;
+            };
+            
+            // 提供替代的document.ready
+            $.ready = function(callback) {
+                document.addEventListener('DOMContentLoaded', callback);
+            };
+            
+            // 动态加载jQuery
+            const script = document.createElement('script');
+            script.src = 'https://code.jquery.com/jquery-3.6.0.min.js';
+            script.onload = function() {
+                console.log('jQuery已成功动态加载');
+                // 恢复正常的jQuery功能
+                window.$ = jQuery;
+            };
+            script.onerror = function() {
+                console.error('无法加载jQuery库');
+            };
+            document.head.appendChild(script);
+        }
+    </script>
+    
+    <!-- Bootstrap JS and Popper.js -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Highlight.js for code syntax highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    
+    <!-- Marked for markdown parsing -->
+    <script src="/static/js/marked.min.js"></script>
+    
+    <!-- 通用侧边栏功能 -->
+    <script src="/static/js/sidebar.js"></script>
+    
+    <!-- PWA 脚本引用 -->
+    <script src="/static/js/pwa-installer.js" defer></script>
+    
+    <!-- 移动端侧边栏修复脚本 -->
+    <script src="/static/js/mobile-sidebar-fix.js"></script>
+    
+    <!-- PWA 安装和卸载 -->
+    <script>
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // 先注销旧的service worker以避免缓存问题
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for(let registration of registrations) {
+                        registration.unregister().then(function(success) {
+                            if (success) {
+                                console.log('旧的Service Worker已成功注销');
+                            }
+                        }).catch(function(error) {
+                            console.error('注销Service Worker失败:', error);
+                        });
+                    }
+                    
+                    // 注册新的service worker
+                    setTimeout(() => {
+                        navigator.serviceWorker.register('/service-worker.js', {
+                            scope: '/'
+                        })
+                        .then(registration => {
+                            console.log('Service Worker 注册成功, 作用域为:', registration.scope);
+                            
+                            // 强制更新
+                            registration.update()
+                                .then(() => console.log('Service Worker 已更新'))
+                                .catch(err => console.warn('Service Worker 更新失败:', err));
+                        })
+                        .catch(error => {
+                            console.warn('Service Worker 注册失败, 应用将降级为普通网页模式:', error);
+                            // 清除可能损坏的缓存
+                            if (window.caches) {
+                                caches.keys().then(cacheNames => {
+                                    return Promise.all(
+                                        cacheNames.map(cacheName => {
+                                            console.log('删除缓存:', cacheName);
+                                            return caches.delete(cacheName);
+                                        })
+                                    );
+                                });
+                            }
+                        });
+                    }, 1000); // 延迟1秒注册，确保旧的完全注销
+                }).catch(function(error) {
+                    console.error('获取Service Worker注册列表失败:', error);
+                });
+            });
+            
+            // 监听控制权变更
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                console.log('Service Worker控制权已变更');
+            });
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

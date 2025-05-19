@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景 -->
+  <rect width="512" height="512" fill="#f8f9fa" rx="10" ry="10" />
+
+  <!-- 装饰图案 -->
+  <path d="M0,256 L512,256" stroke="#e9ecef" stroke-width="2" stroke-dasharray="10,10" />
+  <path d="M256,0 L256,512" stroke="#e9ecef" stroke-width="2" stroke-dasharray="10,10" />
+
+  <!-- 图片占位图标 -->
+  <rect x="196" y="176" width="120" height="120" rx="8" ry="8" fill="none" stroke="#5652BF" stroke-width="4" />
+  <circle cx="232" cy="212" r="16" fill="#5652BF" />
+  <path d="M196,256 L236,216 L266,246 L286,226 L316,256" stroke="#5652BF" stroke-width="4" fill="none" />
+
+  <!-- 加载动画 -->
+  <g transform="translate(256, 326)">
+    <circle cx="-30" cy="0" r="6" fill="#5652BF">
+      <animate attributeName="opacity" dur="1s" values="0.2;1;0.2" repeatCount="indefinite" begin="0s" />
+    </circle>
+    <circle cx="0" cy="0" r="6" fill="#5652BF">
+      <animate attributeName="opacity" dur="1s" values="0.2;1;0.2" repeatCount="indefinite" begin="0.3s" />
+    </circle>
+    <circle cx="30" cy="0" r="6" fill="#5652BF">
+      <animate attributeName="opacity" dur="1s" values="0.2;1;0.2" repeatCount="indefinite" begin="0.6s" />
+    </circle>
+  </g>
+
+  <!-- 文字 -->
+  <text x="256" y="370" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#6c757d">正在加载图片...</text>
+</svg> 

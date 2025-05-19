@@ -1,0 +1,655 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}积分中心 - 小羊系统{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/credits.css' %}">
+<!-- SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.min.css">
+<style>
+    .credits-card {
+        background-color: #333333;
+        color: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .credits-amount {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .sign-in-btn {
+        background-color: white;
+        border-color: white;
+        color: #333333;
+        border-radius: 6px;
+        padding: 8px 16px;
+        font-weight: 600;
+    }
+    .sign-in-btn:hover {
+        background-color: rgba(255,255,255,0.9);
+    }
+    .signed-badge {
+        background-color: rgba(255,255,255,0.2);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: bold;
+    }
+    .model-price-card {
+        border-radius: 8px;
+        border: 1px solid rgba(0,0,0,0.1);
+        margin-bottom: 12px;
+    }
+    .record-item {
+        border-left: 3px solid #333333;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        background-color: #f8f9fa;
+        border-radius: 0 6px 6px 0;
+    }
+    .positive {
+        color: #555555;
+        font-weight: 600;
+    }
+    .negative {
+        color: #777777;
+        font-weight: 600;
+    }
+    .header {
+        height: var(--header-height);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 15px;
+        background-color: var(--bg-main);
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+    }
+    .header-left {
+        display: flex;
+        align-items: center;
+    }
+    .header-right {
+        display: flex;
+        align-items: center;
+    }
+    .header-user-menu {
+        position: relative;
+    }
+    .header-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: #333333;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        margin-left: 10px;
+    }
+    .header-dropdown-menu {
+        position: absolute;
+        right: 0;
+        top: 100%;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 8px;
+        display: none;
+    }
+    .header-dropdown-item {
+        display: block;
+        padding: 8px 16px;
+        text-decoration: none;
+        color: var(--text-primary);
+    }
+    .header-dropdown-divider {
+        height: 1px;
+        background-color: rgba(0,0,0,0.05);
+        margin: 8px 0;
+    }
+    .main-content {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+    }
+    .main-content-container {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-bottom: 20px;
+    }
+    .card {
+        border-radius: 8px;
+        border: 1px solid rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .card-header {
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        background-color: white;
+        padding: 12px 16px;
+        font-weight: 600;
+    }
+    .card-body {
+        padding: 16px;
+    }
+    .feature-card {
+        margin-bottom: 20px;
+    }
+    .feature-card .icon {
+        font-size: 20px;
+        margin-bottom: 12px;
+        color: #333333;
+    }
+    .table th {
+        font-weight: 600;
+        color: var(--text-primary);
+        border-top: none;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .table td {
+        vertical-align: middle;
+    }
+    .btn-recharge {
+        background-color: #333333;
+        border-color: #333333;
+        color: white;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-weight: 500;
+    }
+    .btn-recharge:hover {
+        background-color: #555555;
+        border-color: #555555;
+    }
+    .recharge-option {
+        cursor: pointer;
+        border: 1px solid rgba(0,0,0,0.1);
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        background-color: white;
+        display: block;
+        text-decoration: none;
+        color: var(--text-primary);
+        height: 100%;
+    }
+    .recharge-option:hover {
+        border-color: #333333;
+        background-color: rgba(0,0,0,0.05);
+        text-decoration: none;
+        color: #333333;
+    }
+    .recharge-option .amount {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #333333;
+    }
+    .recharge-option .credits {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    .status-badge {
+        border-radius: 20px;
+        padding: 4px 8px;
+        font-size: 0.8rem;
+    }
+    .status-pending {
+        background-color: #cccccc;
+        color: #333333;
+    }
+    .status-approved {
+        background-color: #333333;
+        color: white;
+    }
+    .status-rejected {
+        background-color: #777777;
+        color: white;
+    }
+    .status-canceled {
+        background-color: #aaaaaa;
+        color: white;
+    }
+    .btn-outline-primary {
+        color: #333333;
+        border-color: #333333;
+    }
+    .btn-outline-primary:hover {
+        color: white;
+        background-color: #333333;
+        border-color: #333333;
+    }
+    .btn-primary {
+        color: white;
+        background-color: #333333;
+        border-color: #333333;
+    }
+    .btn-primary:hover {
+        color: white;
+        background-color: #555555;
+        border-color: #555555;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 引入通用侧边栏组件 -->
+{% include "components/sidebar.html" with active_namespace="credits" %}
+
+<!-- 主内容区 -->
+<div class="main-content" id="mainContent">
+    <!-- 头部 -->
+    <div class="header">
+        <div class="header-left">
+            <button class="toggle-sidebar" id="toggleSidebarBtn">
+                <i class="fas fa-bars" id="sidebarIcon"></i>
+            </button>
+            <h5 class="mb-0">积分中心</h5>
+        </div>
+        <div class="header-right">
+            <div class="header-user-menu">
+                <div class="header-avatar" id="headerUserAvatar">
+                    {{ user.username|slice:":1"|upper }}
+                </div>
+                <div class="header-dropdown-menu" id="headerUserMenu">
+                    <div class="header-dropdown-item">
+                        <i class="fas fa-user"></i> {{ user.username }}
+                    </div>
+                    <div class="header-dropdown-divider"></div>
+                    <a href="{% url 'credits:dashboard' %}" class="header-dropdown-item">
+                        <i class="fas fa-coins"></i> 积分中心
+                    </a>
+                    <a href="{% url 'logout' %}" class="header-dropdown-item">
+                        <i class="fas fa-sign-out-alt"></i> 退出登录
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid p-0 main-content-container custom-scrollbar">
+        <!-- 积分卡片 -->
+        <div class="credits-card mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="subtitle">当前积分</div>
+                    <div class="credits-amount">{{ profile.credits }}</div>
+                    <p class="mt-2 mb-0">连续签到: {{ profile.continuous_sign_days }} 天 | 总签到: {{ profile.total_sign_days }} 天</p>
+                </div>
+                <div class="col-md-6 text-md-right d-flex align-items-center justify-content-md-end">
+                    {% if signed_today %}
+                        <span class="signed-badge"><i class="fas fa-check"></i> 今日已签到</span>
+                    {% else %}
+                        <!-- 使用表单提交签到，确保CSRF令牌正确传递 -->
+                        <form id="sign-in-form" style="display:inline;" method="post" action="{% url 'credits:sign_in' %}">
+                            {% csrf_token %}
+                            <button id="sign-in-btn" type="button" class="btn sign-in-btn">
+                                <i class="fas fa-calendar-check"></i> 签到 +{{ possible_credits }}
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- 左侧内容 -->
+            <div class="col-lg-8">
+                <!-- 积分特性卡片 -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card feature-card h-100">
+                            <div class="card-body text-center">
+                                <div class="icon">
+                                    <i class="fas fa-comments"></i>
+                                </div>
+                                <h5>AI对话</h5>
+                                <p class="mb-0 text-muted">使用积分进行AI对话，不同模型消耗不同积分</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card feature-card h-100">
+                            <div class="card-body text-center">
+                                <div class="icon">
+                                    <i class="fas fa-calendar-check"></i>
+                                </div>
+                                <h5>每日签到</h5>
+                                <p class="mb-0 text-muted">每日签到可赚取积分，连续签到奖励更多</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card feature-card h-100">
+                            <div class="card-body text-center">
+                                <div class="icon">
+                                    <i class="fas fa-gift"></i>
+                                </div>
+                                <h5>积分充值</h5>
+                                <p class="mb-0 text-muted">充值积分享受更多功能，充值多送积分</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 积分记录 -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div><i class="fas fa-history me-2"></i> 积分明细</div>
+                        <a href="{% url 'credits:credit_records' %}" class="btn btn-sm btn-outline-primary">查看全部</a>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_records %}
+                            {% for record in recent_records %}
+                            <div class="record-item">
+                                <div class="d-flex justify-content-between">
+                                    <div>{{ record.get_record_type_display }}</div>
+                                    <div class="{% if record.credit_change > 0 %}positive{% else %}negative{% endif %}">
+                                        {% if record.credit_change > 0 %}+{% endif %}{{ record.credit_change }}
+                                    </div>
+                                </div>
+                                <div class="small text-muted">{{ record.created_at|date:"Y-m-d H:i" }}</div>
+                                <div class="small">{{ record.description }}</div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-receipt" style="font-size: 2rem; color: #d1d1d1; margin-bottom: 15px;"></i>
+                                <p class="text-muted">暂无积分记录</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- 充值记录 -->
+                {% if recent_charges %}
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div><i class="fas fa-receipt me-2"></i> 充值记录</div>
+                        <a href="{% url 'credits:charge_records' %}" class="btn btn-sm btn-outline-primary">查看全部</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>金额</th>
+                                        <th>积分</th>
+                                        <th>状态</th>
+                                        <th>时间</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for charge in recent_charges %}
+                                    <tr>
+                                        <td>{{ charge.amount }}元</td>
+                                        <td>{{ charge.credits }}</td>
+                                        <td>
+                                            {% if charge.status == 'pending' %}
+                                                <span class="status-badge status-pending">待处理</span>
+                                            {% elif charge.status == 'approved' %}
+                                                <span class="status-badge status-approved">已通过</span>
+                                            {% elif charge.status == 'rejected' %}
+                                                <span class="status-badge status-rejected">已拒绝</span>
+                                            {% else %}
+                                                <span class="status-badge status-canceled">已取消</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ charge.created_at|date:"Y-m-d H:i" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- 右侧内容 -->
+            <div class="col-lg-4">
+                <!-- 充值中心 -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div><i class="fas fa-coins me-2"></i> 快速充值</div>
+                        <a href="{% url 'credits:recharge' %}" class="btn btn-sm btn-primary">更多选项</a>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-3">充值比例: 1元 = {{ credit_exchange_rate }} 积分</p>
+                        {% if recharge_options %}
+                            <div class="row row-cols-2 g-3 mb-3">
+                                {% for option in recharge_options|slice:":4" %}
+                                <div class="col">
+                                    <a href="{% url 'credits:recharge' %}?amount={{ option.amount }}" class="recharge-option">
+                                        <div class="amount">{{ option.amount }}元</div>
+                                        <div class="credits">
+                                            {{ option.credits }}积分
+                                            {% if option.bonus %}<span class="text-secondary">(送{{ option.bonus }})</span>{% endif %}
+                                        </div>
+                                    </a>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <a href="{% url 'credits:recharge' %}" class="btn btn-recharge w-100">
+                                <i class="fas fa-plus-circle me-1"></i> 查看更多充值选项
+                            </a>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-coins" style="font-size: 2rem; color: #d1d1d1; margin-bottom: 15px;"></i>
+                                <p class="text-muted">暂无充值选项</p>
+                                <a href="{% url 'credits:recharge' %}" class="btn btn-recharge">联系管理员</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- 模型价格 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-tag me-2"></i> 模型价格
+                    </div>
+                    <div class="card-body">
+                        {% if models_with_prices %}
+                            <div class="row">
+                                {% for model in models_with_prices %}
+                                <div class="col-12 mb-3">
+                                    <div class="card model-price-card">
+                                        <div class="card-body py-2">
+                                            <h6 class="mb-1">{{ model.display_name }}</h6>
+                                            <div class="d-flex justify-content-between small">
+                                                <span>输入: {{ model.input_price }}/1K tokens</span>
+                                                <span>输出: {{ model.output_price }}/1K tokens</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-center text-muted py-4">暂无模型价格信息</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.all.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 头部用户菜单
+    const headerUserAvatar = document.getElementById('headerUserAvatar');
+    const headerUserMenu = document.getElementById('headerUserMenu');
+    
+    if (headerUserAvatar && headerUserMenu) {
+        // 点击头像显示/隐藏下拉菜单
+        headerUserAvatar.addEventListener('click', function(e) {
+            e.stopPropagation();
+            headerUserMenu.classList.toggle('show');
+        });
+        
+        // 点击页面其他地方关闭下拉菜单
+        document.addEventListener('click', function() {
+            headerUserMenu.classList.remove('show');
+        });
+        
+        // 防止点击下拉菜单本身时关闭菜单
+        headerUserMenu.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+    
+    // 加载用户积分信息
+    function loadUserCredits() {
+        fetch('/credits/api/user-credits/')
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById('user-credits').textContent = data.credits;
+                } else {
+                    document.getElementById('user-credits').textContent = '--';
+                }
+            })
+            .catch(error => {
+                console.error('获取积分信息失败:', error);
+                document.getElementById('user-credits').textContent = '获取失败';
+            });
+    }
+    
+    // 页面加载时获取积分
+    loadUserCredits();
+    
+    // 定时更新积分信息（每5分钟）
+    setInterval(loadUserCredits, 5 * 60 * 1000);
+
+    // 签到按钮点击
+    const signInBtn = document.getElementById('sign-in-btn');
+    if (signInBtn) {
+        signInBtn.addEventListener('click', function() {
+            const button = this;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 签到中...';
+            
+            // 获取CSRF令牌
+            const csrfToken = '{{ csrf_token }}';
+            
+            // 使用fetch API替代XMLHttpRequest
+            fetch('{% url "credits:sign_in" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin' // 包含cookies
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('网络错误，状态码: ' + response.status);
+                }
+                return response.text().then(text => {
+                    try {
+                        // 尝试解析JSON
+                        return JSON.parse(text);
+                    } catch (e) {
+                        // 如果不是有效的JSON，可能是HTML响应
+                        console.error('服务器返回的不是有效的JSON:', text.substring(0, 100) + '...');
+                        throw new Error('服务器返回了无效的数据格式');
+                    }
+                });
+            })
+            .then(data => {
+                console.log('签到响应:', data);
+                if (data.success) {
+                    // 显示成功消息
+                    Swal.fire({
+                        title: '签到成功!',
+                        text: data.message,
+                        icon: 'success',
+                        confirmButtonColor: '#333333'
+                    }).then(() => {
+                        // 直接更新UI，而不是刷新页面
+                        // 获取签到按钮的父元素
+                        const signInForm = document.getElementById('sign-in-form');
+                        if (signInForm) {
+                            // 创建"今日已签到"的标记
+                            const signedBadge = document.createElement('span');
+                            signedBadge.className = 'signed-badge';
+                            signedBadge.innerHTML = '<i class="fas fa-check"></i> 今日已签到';
+                            
+                            // 替换按钮为标记
+                            signInForm.parentNode.replaceChild(signedBadge, signInForm);
+                            
+                            // 更新积分显示
+                            document.querySelector('.credits-amount').textContent = data.credits;
+                            
+                            // 更新侧边栏积分显示
+                            document.getElementById('user-credits').textContent = data.credits;
+                        } else {
+                            // 如果找不到元素，则刷新页面
+                            location.reload();
+                        }
+                    });
+                } else {
+                    // 显示错误消息
+                    Swal.fire({
+                        title: '签到失败',
+                        text: data.message || '未知错误',
+                        icon: 'error',
+                        confirmButtonColor: '#333333'
+                    });
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-calendar-check"></i> 签到';
+                }
+            })
+            .catch(error => {
+                console.error('签到请求失败:', error);
+                Swal.fire({
+                    title: '签到失败',
+                    text: error.message || '网络错误，请稍后重试',
+                    icon: 'error',
+                    confirmButtonColor: '#333333'
+                });
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-calendar-check"></i> 签到';
+            });
+        });
+    }
+
+    // 侧边栏遮罩层修复
+    const overlay = document.querySelector('.sidebar-overlay');
+    const sidebar = document.querySelector('.sidebar');
+    
+    if (overlay && sidebar) {
+        // 确保overlay能够点击并正确关闭侧边栏
+        overlay.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // 关闭侧边栏
+            sidebar.classList.add('sidebar-collapsed');
+            sidebar.classList.remove('sidebar-active');
+            
+            // 隐藏遮罩层
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 300);
+            
+            // 恢复背景滚动
+            document.body.style.overflow = '';
+        });
+    }
+});
+</script>
+{% endblock %} 

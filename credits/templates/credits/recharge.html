@@ -1,0 +1,519 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load credit_extras %}
+
+{% block title %}积分充值 - 小羊系统{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/credits.css' %}">
+<!-- SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.min.css">
+<style>
+    .recharge-option {
+        cursor: pointer;
+        border: 1px solid rgba(0,0,0,0.1);
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        background-color: white;
+    }
+    .recharge-option:hover {
+        border-color: #333333;
+        background-color: rgba(0,0,0,0.05);
+    }
+    .recharge-option.active {
+        border-color: #333333;
+        background-color: rgba(0,0,0,0.05);
+    }
+    .recharge-option .amount {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #333333;
+    }
+    .recharge-option .credits {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    .payment-method {
+        cursor: pointer;
+        padding: 12px;
+        border: 1px solid rgba(0,0,0,0.1);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        background-color: white;
+    }
+    .payment-method:hover {
+        border-color: #333333;
+        background-color: rgba(0,0,0,0.05);
+    }
+    .payment-method.active {
+        border-color: #333333;
+        background-color: rgba(0,0,0,0.05);
+    }
+    .payment-method img {
+        width: 32px;
+        height: 32px;
+        margin-right: 12px;
+    }
+    .payment-method .name {
+        font-weight: 500;
+        font-size: 1rem;
+    }
+    .header {
+        height: var(--header-height);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 15px;
+        background-color: var(--bg-main);
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+        width: 100%;
+    }
+    .header-left {
+        display: flex;
+        align-items: center;
+    }
+    .main-content {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+        width: calc(100% - var(--sidebar-width));
+        margin-left: var(--sidebar-width);
+        position: absolute;
+        right: 0;
+    }
+    .content-container {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 0 20px 20px;
+        width: 100%;
+    }
+    .content-wrapper {
+        width: 100%;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    .card {
+        border-radius: 8px;
+        border: 1px solid rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        width: 100%;
+    }
+    .card-body {
+        padding: 16px;
+    }
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 10px;
+        color: var(--text-primary);
+    }
+    .btn-primary {
+        background-color: #333333;
+        border-color: #333333;
+        border-radius: 6px;
+        padding: 8px 16px;
+        font-weight: 500;
+        color: white;
+    }
+    .btn-primary:hover {
+        background-color: #555555;
+        border-color: #555555;
+        color: white;
+    }
+    #customAmountInput {
+        background-color: rgba(255,255,255,0.8);
+        border-radius: 8px;
+        padding: 12px;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+    #customAmount {
+        border-radius: 6px;
+        padding: 10px;
+        font-size: 1rem;
+    }
+    .alert-info {
+        background-color: rgba(0,0,0,0.05);
+        border: none;
+        border-radius: 8px;
+        border-left: 4px solid #333333;
+    }
+    /* 自定义增强样式 */
+    .bonus-tag {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background-color: #555555;
+        color: white;
+        font-size: 11px;
+        font-weight: bold;
+        padding: 2px 6px;
+        border-radius: 16px;
+    }
+    .popular-tag {
+        position: absolute;
+        top: -8px;
+        left: -8px;
+        background-color: #777777;
+        color: white;
+        font-size: 11px;
+        font-weight: bold;
+        padding: 2px 6px;
+        border-radius: 16px;
+    }
+    .header-right {
+        display: flex;
+        align-items: center;
+    }
+    .credit-balance {
+        background-color: rgba(0,0,0,0.05);
+        color: #333333;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 20px;
+        margin-right: 12px;
+    }
+    .text-primary {
+        color: #333333 !important;
+    }
+    .text-danger {
+        color: #666666 !important;
+    }
+    
+    /* 自定义滚动条样式 */
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0,0,0,0.2) transparent;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: rgba(0,0,0,0.2);
+        border-radius: 6px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background-color: transparent;
+    }
+    
+    /* 响应式布局调整 */
+    @media (max-width: 768px) {
+        .main-content {
+            width: 100%;
+            margin-left: 0;
+        }
+        
+        .recharge-option {
+            margin-bottom: 10px;
+        }
+        
+        .payment-method {
+            margin-bottom: 10px;
+        }
+        
+        .header-right {
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        
+        .credit-balance {
+            margin-bottom: 5px;
+        }
+        
+        .btn-submit {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 引入通用侧边栏组件 -->
+{% include "components/sidebar.html" with active_namespace="credits" %}
+
+<!-- 主内容区 -->
+<div class="main-content" id="mainContent">
+    <!-- 头部 -->
+    <div class="header">
+        <div class="header-left">
+            <button class="toggle-sidebar" id="toggleSidebarBtn">
+                <i class="fas fa-bars" id="sidebarIcon"></i>
+            </button>
+            <h5 class="mb-0">积分充值</h5>
+        </div>
+        
+        <div class="header-right">
+            <div class="credit-balance">
+                <i class="fas fa-coins me-2"></i> 当前积分: <span id="user-credits">{{ profile.credits }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 充值内容 -->
+    <div class="content-container custom-scrollbar">
+        <div class="content-wrapper">
+            {% if not has_payment_config %}
+            <div class="alert alert-warning" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i> 支付功能暂未配置，请联系管理员
+            </div>
+            {% endif %}
+            
+            <form id="rechargeForm" method="post" action="{% url 'credits:create_charge_record' %}">
+                {% csrf_token %}
+                
+                <!-- 充值金额选择 -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="form-label">选择充值金额</h5>
+                        <div class="row g-3 mb-3">
+                            {% for option in recharge_options %}
+                                <div class="col-6 col-md-4">
+                                    <div class="recharge-option position-relative" data-amount="{{ option }}" {% if option == pre_selected_amount %}id="preSelectedOption"{% endif %}>
+                                        {% if forloop.first %}
+                                            <div class="popular-tag"><i class="fas fa-star me-1"></i> 推荐</div>
+                                        {% endif %}
+                                        {% if forloop.counter == 3 %}
+                                            <div class="bonus-tag"><i class="fas fa-gift me-1"></i> 赠10%</div>
+                                        {% endif %}
+                                        <div class="amount">{{ option }}元</div>
+                                        <div class="credits">
+                                            {% widthratio option 1 exchange_rate %}积分
+                                            {% if forloop.counter == 3 or option >= 100 %}
+                                                <span class="text-secondary">(+{{ option|bonus_credits }})</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                            <div class="col-6 col-md-4">
+                                <div class="recharge-option custom-amount">
+                                    <div class="amount"><i class="fas fa-edit"></i> 自定义</div>
+                                    <div class="credits">输入充值金额</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 自定义金额输入框 -->
+                        <div id="customAmountInput" class="mb-3" style="display: none;">
+                            <label for="customAmount" class="form-label">自定义金额（元）</label>
+                            <input type="number" class="form-control" id="customAmount" min="1" step="1" placeholder="请输入金额">
+                            <div class="form-text mt-2" id="creditsPreview">可获得 <span class="text-primary fw-bold">0</span> 积分</div>
+                        </div>
+                        
+                        <input type="hidden" name="amount" id="selectedAmount">
+                    </div>
+                </div>
+                
+                <!-- 支付方式选择 -->
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="form-label">支付方式</h5>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="payment-method active" data-method="lantupay">
+                                    <i class="fas fa-mobile-alt fa-2x" style="color: #1E76E3; width: 32px; margin-right: 12px;"></i>
+                                    <div>
+                                        <div class="name">H5支付</div>
+                                        <small class="text-muted">使用微信或支付宝APP扫码支付</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <input type="hidden" name="payment_method" id="selectedPaymentMethod" value="lantupay">
+                    </div>
+                </div>
+                
+                <!-- 兑换比率和温馨提示 -->
+                <div class="alert alert-info mb-4">
+                    <h6 class="alert-heading fw-bold mb-2"><i class="fas fa-info-circle me-2"></i>充值说明</h6>
+                    <p class="mb-1">- 充值比例：1元 = {{ exchange_rate }} 积分</p>
+                    <p class="mb-1">- 充值成功后，积分将立即到账</p>
+                    <p class="mb-1">- 单笔充值满100元赠送10%积分</p>
+                    <p class="mb-0">- 如遇到充值问题，请联系客服</p>
+                </div>
+                
+                <!-- 提交按钮 -->
+                <div class="d-flex justify-content-center mb-4">
+                    <button type="submit" class="btn btn-primary px-5 btn-submit" id="submitBtn" disabled {% if not has_payment_config %}disabled{% endif %}>
+                        <i class="fas fa-check-circle me-1"></i> 确认支付
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- 充值帮助 -->
+        <div class="card">
+            <div class="card-body">
+                <h6 class="mb-3 fw-bold"><i class="fas fa-question-circle me-2"></i>常见问题</h6>
+                <div class="accordion" id="faqAccordion">
+                    <div class="accordion-item border-0 mb-2">
+                        <h2 class="accordion-header" id="headingOne">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                                积分如何使用？
+                            </button>
+                        </h2>
+                        <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                积分可以用于支付AI对话、内容生成、知识分析等服务费用。不同服务消耗的积分数量会有所不同，详情可查看各服务页面的积分说明。
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item border-0 mb-2">
+                        <h2 class="accordion-header" id="headingTwo">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                充值后多久到账？
+                            </button>
+                        </h2>
+                        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                充值申请提交后系统将立即处理您的支付请求。支付成功后，积分将自动添加至您的账户，一般情况下为即时到账。
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item border-0">
+                        <h2 class="accordion-header" id="headingThree">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                积分有有效期吗？
+                            </button>
+                        </h2>
+                        <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                充值获得的积分目前没有设置有效期限制，可以长期使用。系统偶尔会举办限时活动赠送积分，这类赠送的积分可能会有使用期限。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.all.min.js"></script>
+<script>
+$(document).ready(function() {
+    // 加载用户积分信息
+    function loadUserCredits() {
+        fetch('/credits/api/user-credits/')
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById('user-credits').textContent = data.credits;
+                } else {
+                    document.getElementById('user-credits').textContent = '--';
+                }
+            })
+            .catch(error => {
+                console.error('获取积分信息失败:', error);
+                document.getElementById('user-credits').textContent = '获取失败';
+            });
+    }
+    
+    // 页面加载时获取积分
+    loadUserCredits();
+    
+    // 定时更新积分信息（每5分钟）
+    setInterval(loadUserCredits, 5 * 60 * 1000);
+
+    var exchangeRate = parseFloat("{{ exchange_rate }}");
+    var selectedAmount = 0;
+    
+    // 充值选项点击事件
+    $('.recharge-option').click(function() {
+        $('.recharge-option').removeClass('active');
+        $(this).addClass('active');
+        
+        if ($(this).hasClass('custom-amount')) {
+            // 自定义金额
+            $('#customAmountInput').slideDown();
+            $('#customAmount').focus();
+            selectedAmount = 0;
+            $('#selectedAmount').val('');
+            updateSubmitButton();
+        } else {
+            // 预设金额
+            $('#customAmountInput').slideUp();
+            selectedAmount = parseFloat($(this).data('amount'));
+            $('#selectedAmount').val(selectedAmount);
+            
+            // 更新显示
+            updateSubmitButton();
+        }
+    });
+    
+    // 自定义金额输入事件
+    $('#customAmount').on('input', function() {
+        var amount = parseFloat($(this).val()) || 0;
+        var credits = Math.floor(amount * exchangeRate);
+        
+        // 如果金额大于等于100，额外增加10%
+        if(amount >= 100) {
+            var bonus = Math.floor(amount * 0.1);
+            credits += bonus;
+            $('#creditsPreview').html('可获得 <span class="text-primary fw-bold">' + credits + '</span> 积分 <span class="text-secondary">(含赠送' + bonus + '积分)</span>');
+        } else {
+            $('#creditsPreview').html('可获得 <span class="text-primary fw-bold">' + credits + '</span> 积分');
+        }
+        
+        selectedAmount = amount;
+        $('#selectedAmount').val(amount > 0 ? amount : '');
+        updateSubmitButton();
+    });
+    
+    // 更新提交按钮状态
+    function updateSubmitButton() {
+        if (selectedAmount > 0 && {{ has_payment_config|yesno:"true,false" }}) {
+            $('#submitBtn').prop('disabled', false);
+        } else {
+            $('#submitBtn').prop('disabled', true);
+        }
+    }
+    
+    // 表单提交前检查
+    $('#rechargeForm').on('submit', function(e) {
+        if (selectedAmount <= 0) {
+            e.preventDefault();
+            Swal.fire({
+                title: '请选择充值金额',
+                text: '请选择或输入有效的充值金额',
+                icon: 'warning',
+                confirmButtonColor: '#333333'
+            });
+            return false;
+        }
+        
+        if (!{{ has_payment_config|yesno:"true,false" }}) {
+            e.preventDefault();
+            Swal.fire({
+                title: '支付功能未配置',
+                text: '支付功能暂未配置，请联系管理员',
+                icon: 'warning',
+                confirmButtonColor: '#333333'
+            });
+            return false;
+        }
+        
+        // 显示等待提交的加载效果
+        $('#submitBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> 正在处理...');
+        
+        return true;
+    });
+    
+    // 自动点击第一个充值选项或预选选项
+    if ($('#preSelectedOption').length > 0) {
+        $('#preSelectedOption').click();
+    } else {
+        $('.recharge-option:first').click();
+    }
+});
+</script>
+{% endblock %} 

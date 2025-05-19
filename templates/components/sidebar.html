@@ -1,0 +1,458 @@
+{% comment %}
+通用侧边栏组件
+参数说明：
+- active_namespace: 当前活动的命名空间，用于高亮显示当前应用
+- sidebar_content_template: 每个页面特定的侧边栏内容的模板路径
+{% endcomment %}
+
+<!-- 侧边栏 -->
+<div class="sidebar" id="sidebar">
+    <!-- 第一区域：应用导航区 -->
+    <div class="app-section">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="app-title">应用</div>
+            <div>
+                <button class="app-scroll-btn" id="scrollAppsBtn" title="显示更多应用">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+        </div>
+        <div class="app-list" id="appList">
+            <!-- 聊天应用 -->
+            <a href="{% url 'chat:latest_conversation' %}" class="app-item {% if active_namespace == 'chat' %}active{% endif %}">
+                <i class="fas fa-comment-dots"></i>
+                <span>ChatGPT</span>
+            </a>
+           
+            <!-- 社区讨论 -->
+            <a href="{% url 'community:post_list' %}" class="app-item {% if active_namespace == 'community' %}active{% endif %}">
+                <i class="fas fa-comments"></i>
+                <span>社区讨论</span>
+            </a>
+            
+            <!-- 积分中心 -->
+            <a href="{% url 'credits:dashboard' %}" class="app-item {% if active_namespace == 'credits' %}active{% endif %}">
+                <i class="fas fa-coins"></i>
+                <span>积分中心</span>
+            </a>
+            
+            <!-- GitHub分析 -->
+            <a href="#" class="app-item {% if active_namespace == 'github' %}active{% endif %}">
+                <i class="fab fa-github"></i>
+                <span>GitHub分析</span>
+            </a>
+        </div>
+    </div>
+    
+    <!-- 第二区域：页面特定内容区域 -->
+    <div class="page-specific-section">
+        {% if active_namespace == 'chat' %}
+            {% include 'chat/sidebar_content.html' %}
+        {% elif active_namespace == 'community' %}
+            {% include 'community/sidebar_content.html' %}
+        {% elif active_namespace == 'credits' %}
+            {% include 'credits/sidebar_content.html' %}
+        {% endif %}
+        
+    </div>
+    
+    <!-- 第三区域：积分显示 -->
+    <div class="settings-container">
+        <!-- 积分信息 -->
+        <div class="credits-display mb-2">
+            <div class="d-flex justify-content-between align-items-center">
+                <span style="font-size: 15px;">当前积分</span>
+                <span id="user-credits" style="font-size:15px;font-weight: bold; color: #4a5696;">加载中...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 侧边栏遮罩层 - 当侧边栏打开时显示 -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- 侧边栏内容区域的通用样式 -->
+<style>
+    /* 侧边栏整体样式 - 图片风格 */
+    .sidebar {
+        width: var(--sidebar-width);
+        background-color: #f5f6fa;
+        color: #494949;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        border: none !important;
+        z-index: 100;
+    }
+    
+    /* 应用区域样式 */
+    .app-section {
+        padding: 12px 10px;
+        
+    }
+    
+    /* 应用标题样式 */
+    .sidebar .app-title {
+        padding: 0 8px 0;
+        font-size: 13px;
+        font-weight: 500;
+        color: #6e7081;
+    }
+    
+    /* 应用项目样式 */
+    .app-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 12px;
+        border-radius: 6px;
+        text-decoration: none;
+        color: #494949;
+        transition: background-color 0.2s;
+        margin-bottom: 2px;
+    }
+    
+    .app-item:hover {
+        background-color: rgba(0,0,0,0.05);
+        color: #333;
+        text-decoration: none;
+    }
+    
+    .app-item.active {
+        background-color: rgba(0,0,0,0.07);
+        color: #333;
+        font-weight: 500;
+    }
+    
+    .app-item i {
+        margin-right: 10px;
+        width: 20px;
+        text-align: center;
+        color: #494949;
+    }
+    
+    /* 积分中心/社区内容区域通用样式 */
+    .page-specific-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        padding: 0;
+        background-color: #f5f6fa;
+    }
+    
+    /* 标题和区域样式 */
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .section-title {
+        font-size: 12px;
+        font-weight: 500;
+        color: #6e7081;
+    }
+    
+    .view-all-link {
+        color: #6e7081;
+        font-size: 12px;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+    
+    .view-all-link:hover {
+        color: #333;
+    }
+    
+    /* 记录项和列表样式 */
+    .record-item, .recommended-post-item {
+        padding: 8px 12px;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        transition: background-color 0.2s;
+    }
+    
+    .record-item:hover, .recommended-post-item:hover {
+        background-color: rgba(0,0,0,0.03);
+    }
+    
+    .record-type, .post-title {
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #494949;
+    }
+    
+    .record-time, .post-meta {
+        font-size: 11px;
+        color: #6e7081;
+    }
+    
+    /* 积分统计区域 */
+    .credits-summary-section, .recent-records-section, .quick-recharge-section,
+    .recommended-posts-section, .tags-section {
+        margin-bottom: 12px;
+        background-color: #f5f6fa;
+    }
+    
+    .credits-summary, .quick-recharge-options {
+        padding: 8px 12px;
+    }
+    
+    /* 设置区域样式 */
+    .settings-container {
+        margin-top: auto;
+        padding: 12px 10px;
+        background-color: #f5f6fa;
+    }
+    
+    /* 用户菜单样式 */
+    .user-menu {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #494949;
+        padding: 8px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .user-menu:hover {
+        background-color: rgba(0,0,0,0.03);
+    }
+    
+    .user-menu i {
+        color: #494949;
+    }
+    
+    /* 按钮和链接样式 */
+    .action-btn {
+        background: none;
+        border: none;
+        color: #6e7081;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    
+    .action-btn:hover {
+        background-color: rgba(0,0,0,0.05);
+        color: #333;
+    }
+    
+    /* 积分信息区域 */
+    .credits-display {
+        padding: 8px 10px;
+        color: #494949;
+    }
+    
+    /* 对话列表区域样式 */
+    .chats-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 12px 10px 0;
+        background-color: #f5f6fa;
+    }
+    
+    .chats-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    
+    .chats-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: #6e7081;
+        padding: 0 8px 8px;
+    }
+    
+    .new-chat-btn-small {
+        background-color: rgba(0,0,0,0.05);
+        color: #6e7081;
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        transition: background-color 0.2s;
+    }
+    
+    .new-chat-btn-small:hover {
+        background-color: rgba(0,0,0,0.1);
+        color: #333;
+    }
+    
+    /* 应用列表限制高度和滚动 */
+    .app-list {
+        max-height: 85px;
+        overflow-y: hidden;
+        transition: max-height 0.3s ease;
+    }
+    
+    .app-list.expanded {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+    /* 应用列表滚动按钮 */
+    .app-scroll-btn {
+        background: none;
+        border: none;
+        color: #6e7081;
+        cursor: pointer;
+        padding: 2px 5px;
+        font-size: 10px;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    
+    .app-scroll-btn:hover {
+        background-color: rgba(0,0,0,0.05);
+        color: #333;
+    }
+    
+    .app-scroll-btn.expanded i {
+        transform: rotate(180deg);
+    }
+    
+    /* 侧边栏折叠状态 */
+    .sidebar-collapsed {
+        width: 0;
+        border: none !important;
+        box-shadow: none;
+        overflow: hidden;
+    }
+    
+    /* 下拉菜单样式 */
+    .dropdown-menu {
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-top: 5px;
+        background-color: #fff;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+    
+    .dropdown-item {
+        padding: 8px 16px;
+        color: #494949;
+        transition: background-color 0.2s;
+    }
+    
+    .dropdown-item:hover {
+        background-color: rgba(0,0,0,0.05);
+        color: #333;
+    }
+    
+    /* 移动设备适配 */
+    @media (max-width: 768px) {
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1040;
+            transition: opacity 0.3s ease;
+            pointer-events: auto;
+            cursor: pointer;
+            opacity: 0;
+        }
+        
+        .sidebar {
+            position: fixed !important;
+            left: -280px;
+            transition: all 0.3s ease;
+            z-index: 1050;
+        }
+        
+        .sidebar:not(.sidebar-collapsed) {
+            left: 0;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+        }
+    }
+</style>
+
+<!-- 应用滚动功能 -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const scrollBtn = document.getElementById('scrollAppsBtn');
+        const appList = document.getElementById('appList');
+        
+        if (scrollBtn && appList) {
+            scrollBtn.addEventListener('click', function() {
+                appList.classList.toggle('expanded');
+                this.classList.toggle('expanded');
+                
+                if (this.classList.contains('expanded')) {
+                    this.title = '收起应用列表';
+                } else {
+                    this.title = '显示更多应用';
+                }
+            });
+        }
+    });
+</script>
+
+<script>
+// 加载用户积分信息
+document.addEventListener('DOMContentLoaded', function() {
+    // 立即加载积分信息
+    loadUserCredits();
+    
+    // 定时刷新积分信息（每分钟一次）
+    setInterval(loadUserCredits, 60 * 1000);
+    
+    function loadUserCredits() {
+        console.log('正在从侧边栏加载用户积分...');
+        const creditsElement = document.getElementById('user-credits');
+        
+        if (!creditsElement) {
+            console.error('未找到用户积分元素');
+            return;
+        }
+        
+        // 显示加载状态
+        creditsElement.textContent = '加载中...';
+        
+        // 添加时间戳防止缓存
+        const timestamp = new Date().getTime();
+        fetch('/credits/api/user-credits/?t=' + timestamp)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('积分API返回错误: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('积分API返回数据:', data);
+                if (data.success) {
+                    creditsElement.textContent = data.credits;
+                } else {
+                    creditsElement.textContent = data.credits || '0';
+                    console.warn('积分API返回错误:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('获取积分信息失败:', error);
+                creditsElement.textContent = '0';
+            });
+    }
+});
+</script> 

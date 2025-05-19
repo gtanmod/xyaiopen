@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}充值结果 - 小羊系统{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/credits.css' %}">
+<style>
+    .transaction-info {
+        background-color: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .transaction-info .title {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 5px;
+    }
+    .transaction-info .value {
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+    .status-badge {
+        border-radius: 20px;
+        padding: 8px 15px;
+        font-size: 0.9rem;
+        display: inline-block;
+        margin-top: 5px;
+        white-space: nowrap;
+        line-height: 1;
+        text-align: center;
+        min-width: 80px;
+    }
+    .status-pending {
+        background-color: #FFD166;
+        color: #212529;
+    }
+    .status-approved {
+        background-color: #06D6A0;
+        color: white;
+    }
+    .status-rejected {
+        background-color: #EF476F;
+        color: white;
+    }
+    .status-canceled {
+        background-color: #6c757d;
+        color: white;
+    }
+    .success-icon {
+        font-size: 5rem;
+        color: var(--primary-color);
+        margin-bottom: 20px;
+    }
+    .main-content {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+        padding: 0;
+        width: calc(100% - var(--sidebar-width));
+        margin-left: var(--sidebar-width);
+        position: absolute;
+        right: 0;
+    }
+    .result-container {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        width: 100%;
+        padding: 0 20px 20px;
+    }
+    .content-wrapper {
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .card {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        width: 100%;
+    }
+    .card-body {
+        padding: 30px;
+    }
+    .header {
+        height: var(--header-height);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        background-color: var(--bg-main);
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+        width: 100%;
+    }
+    .header-left {
+        display: flex;
+        align-items: center;
+    }
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 36px;
+        width: 36px;
+        border-radius: 4px;
+        background-color: transparent;
+        border: none;
+        margin-right: 10px;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .back-button:hover {
+        background-color: rgba(0,0,0,0.05);
+    }
+    .back-button i {
+        font-size: 1rem;
+    }
+    .qr-code-wrapper {
+        background-color: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        display: inline-block;
+        margin: 15px auto;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .verification-code {
+        font-family: monospace;
+        font-size: 24px;
+        letter-spacing: 4px;
+        background-color: #f1f1f1;
+        padding: 8px 15px;
+        border-radius: 6px;
+        display: inline-block;
+        margin-top: 10px;
+    }
+    .payment-timer {
+        font-size: 16px;
+        margin: 15px 0;
+        color: #EF476F;
+        font-weight: 600;
+    }
+    .alert-info {
+        background-color: rgba(74, 86, 150, 0.1);
+        border: none;
+        border-radius: 12px;
+        border-left: 4px solid var(--primary-color);
+    }
+    .btn-primary {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 500;
+    }
+    .btn-primary:hover, .btn-primary:focus {
+        background-color: var(--primary-hover);
+        border-color: var(--primary-hover);
+    }
+    .btn-outline-secondary {
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 500;
+    }
+
+    /* 自定义滚动条样式 */
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0,0,0,0.2) transparent;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: rgba(0,0,0,0.2);
+        border-radius: 6px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background-color: transparent;
+    }
+    
+    /* 响应式调整 */
+    @media (max-width: 768px) {
+        .main-content {
+            width: 100%;
+            margin-left: 0;
+        }
+        
+        .card-body {
+            padding: 20px 15px;
+        }
+        .transaction-info .value {
+            font-size: 1rem;
+        }
+        .verification-code {
+            font-size: 20px;
+            letter-spacing: 2px;
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            min-width: 70px;
+        }
+        
+        /* 确保交易信息在移动端正确显示 */
+        .transaction-info .row {
+            margin-bottom: 10px !important;
+        }
+        
+        .transaction-info .col-md-6 {
+            text-align: left !important;
+            margin-bottom: 5px;
+        }
+        
+        /* 按钮在移动端优化 */
+        .mt-4 .btn {
+            margin-bottom: 10px;
+            display: block;
+            width: 100%;
+        }
+        
+        .mt-4 .btn-primary {
+            margin-right: 0 !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 引入通用侧边栏组件 -->
+{% include "components/sidebar.html" with active_namespace="credits" %}
+
+<!-- 主内容区 -->
+<div class="main-content" id="mainContent">
+    <!-- 头部 -->
+    <div class="header">
+        <div class="header-left">
+            <a href="{% url 'credits:dashboard' %}" class="back-button" title="返回积分首页">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h5 class="mb-0">充值结果</h5>
+        </div>
+    </div>
+
+    <div class="result-container custom-scrollbar">
+        <div class="content-wrapper">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    {% if charge_record.status == 'pending' %}
+                        <i class="fas fa-clock success-icon" style="color: #FFD166;"></i>
+                        <h3 class="mb-3">充值请求已提交</h3>
+                        <p class="text-muted mb-4">您的充值申请正在等待处理，请支付后联系管理员</p>
+                        
+                        <!-- 支付二维码展示区域 -->
+                        <div class="qr-code-wrapper">
+                            <img src="/static/img/qr_code_placeholder.png" alt="支付二维码" style="width:200px; height:200px;">
+                            <div class="verification-code mt-3" id="verificationCode">A7B9C3</div>
+                            <p class="text-muted mt-2 mb-1">请使用{{ charge_record.payment_method }}扫码支付</p>
+                            <p class="text-muted small">支付时请备注验证码</p>
+                        </div>
+                        
+                        <!-- 支付倒计时 -->
+                        <div class="payment-timer">
+                            <i class="fas fa-hourglass-half me-2"></i>请在 <span id="paymentTimer">15:00</span> 内完成支付
+                        </div>
+                    {% elif charge_record.status == 'approved' %}
+                        <i class="fas fa-check-circle success-icon" style="color: #06D6A0;"></i>
+                        <h3 class="mb-3">充值已成功</h3>
+                        <p class="text-muted mb-4">您的充值已处理完成，积分已添加到您的账户</p>
+                    {% elif charge_record.status == 'rejected' %}
+                        <i class="fas fa-times-circle success-icon" style="color: #EF476F;"></i>
+                        <h3 class="mb-3">充值被拒绝</h3>
+                        <p class="text-muted mb-4">很抱歉，您的充值请求被拒绝，请查看管理员备注</p>
+                    {% else %}
+                        <i class="fas fa-ban success-icon" style="color: #6c757d;"></i>
+                        <h3 class="mb-3">充值已取消</h3>
+                        <p class="text-muted mb-4">您的充值请求已被取消</p>
+                    {% endif %}
+                    
+                    <div class="transaction-info">
+                        <div class="row mb-3">
+                            <div class="col-md-6 text-md-end">
+                                <div class="title">交易编号</div>
+                                <div class="value">{{ charge_record.transaction_code }}</div>
+                            </div>
+                            <div class="col-md-6 text-md-start">
+                                <div class="title">创建时间</div>
+                                <div class="value">{{ charge_record.created_at|date:"Y-m-d H:i:s" }}</div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6 text-md-end">
+                                <div class="title">充值金额</div>
+                                <div class="value">{{ charge_record.amount }} 元</div>
+                            </div>
+                            <div class="col-md-6 text-md-start">
+                                <div class="title">获得积分</div>
+                                <div class="value">{{ charge_record.credits }} 积分</div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6 text-md-end">
+                                <div class="title">支付方式</div>
+                                <div class="value">{{ charge_record.payment_method }}</div>
+                            </div>
+                            <div class="col-md-6 text-md-start">
+                                <div class="title">当前状态</div>
+                                <div class="value">
+                                    {% if charge_record.status == 'pending' %}
+                                        <span class="status-badge status-pending">待处理</span>
+                                    {% elif charge_record.status == 'approved' %}
+                                        <span class="status-badge status-approved">已通过</span>
+                                    {% elif charge_record.status == 'rejected' %}
+                                        <span class="status-badge status-rejected">已拒绝</span>
+                                    {% else %}
+                                        <span class="status-badge status-canceled">已取消</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% if charge_record.admin_remark %}
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="title">管理员备注</div>
+                                <div class="value">{{ charge_record.admin_remark }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="alert alert-info" role="alert">
+                        <h6 class="alert-heading fw-bold"><i class="fas fa-info-circle me-2"></i>处理说明</h6>
+                        <p class="mb-0">完成支付后，请联系管理员，提供您的交易编号和验证码，以便尽快处理您的充值请求。</p>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'credits:dashboard' %}" class="btn btn-primary me-2">
+                            <i class="fas fa-home me-1"></i> 返回积分中心
+                        </a>
+                        <a href="{% url 'credits:charge_records' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-list me-1"></i> 查看充值记录
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // 加载用户积分信息
+    function loadUserCredits() {
+        fetch('/credits/api/user-credits/')
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById('user-credits').textContent = data.credits;
+                } else {
+                    document.getElementById('user-credits').textContent = '--';
+                }
+            })
+            .catch(error => {
+                console.error('获取积分信息失败:', error);
+                document.getElementById('user-credits').textContent = '获取失败';
+            });
+    }
+    
+    // 页面加载时获取积分
+    loadUserCredits();
+    
+    // 定时更新积分信息（每5分钟）
+    setInterval(loadUserCredits, 5 * 60 * 1000);
+
+    // 生成随机验证码
+    function generateVerificationCode() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+    }
+    
+    // 显示随机验证码
+    const verificationCode = document.getElementById('verificationCode');
+    if (verificationCode) {
+        verificationCode.textContent = generateVerificationCode();
+    }
+    
+    // 设置倒计时
+    const paymentTimer = document.getElementById('paymentTimer');
+    if (paymentTimer) {
+        let minutes = 15;
+        let seconds = 0;
+        
+        const interval = setInterval(function() {
+            if (seconds === 0) {
+                if (minutes === 0) {
+                    clearInterval(interval);
+                    paymentTimer.parentElement.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>支付时间已过期，请重新发起充值';
+                    return;
+                }
+                minutes--;
+                seconds = 59;
+            } else {
+                seconds--;
+            }
+            
+            paymentTimer.textContent = minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
+        }, 1000);
+    }
+});
+</script>
+{% endblock %} 

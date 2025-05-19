@@ -1,0 +1,60 @@
+{% comment %}
+社区应用特定的侧边栏内容
+{% endcomment %}
+
+<!-- 推荐帖子区域 -->
+<div class="recommended-posts-section">
+    <div class="section-header d-flex justify-content-between align-items-center">
+        <div class="section-title">推荐帖子</div>
+        <a href="{% url 'community:create_post' %}" class="action-btn" title="发布新帖">
+            <i class="fas fa-plus"></i>
+        </a>
+    </div>
+    
+    <div class="recommended-posts-list custom-scrollbar">
+        {% if recommended_posts %}
+            {% for post in recommended_posts %}
+            <a href="{% url 'community:post_detail' post.id %}" class="recommended-post-item">
+                <div class="post-title">{{ post.title }}</div>
+                <div class="post-meta">
+                    <span class="post-author">{{ post.author.username }}</span>
+                    <span class="post-stats">
+                        <span class="post-likes"><i class="far fa-heart"></i> {{ post.likes.count }}</span>
+                        <span class="post-comments"><i class="far fa-comment"></i> {{ post.comments.count }}</span>
+                    </span>
+                </div>
+            </a>
+            {% endfor %}
+        {% else %}
+            <div class="p-4 text-center">
+                <div class="mb-3 text-muted">
+                    <i class="fas fa-newspaper fs-4 mb-2"></i>
+                    <p>暂无推荐帖子</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 热门标签区域 -->
+<div class="tags-section">
+    <div class="section-header">
+        <div class="section-title">热门标签</div>
+    </div>
+    
+    <div class="tags-list px-3 py-2">
+        {% if popular_tags %}
+            <div class="d-flex flex-wrap gap-1">
+                {% for tag in popular_tags %}
+                <a href="{% url 'community:post_list' %}?tag={{ tag.name }}" class="badge rounded-pill bg-light text-dark px-2 py-1">
+                    #{{ tag.name }} <span class="text-muted">({{ tag.count }})</span>
+                </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center text-muted">
+                <small>暂无热门标签</small>
+            </div>
+        {% endif %}
+    </div>
+</div> 

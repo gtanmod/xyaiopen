@@ -1,0 +1,376 @@
+{% extends 'base.html' %}
+
+{% block title %}小羊系统 - 智能对话平台{% endblock %}
+
+{% block content %}
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: #ffffff;
+        color: #202123;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    }
+    
+    /* 覆盖.app-container的样式，确保首页正确显示 */
+    .app-container {
+        display: block !important; /* 强制覆盖可能存在的flex布局 */
+        position: relative;
+    }
+    
+    .landing-container {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background-color: #ffffff;
+    }
+    
+    .chatgpt-header {
+        padding: 16px 24px;
+        
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background-color: #ffffff;
+        z-index: 100;
+    }
+    
+    .chatgpt-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 80px 16px 120px;
+    }
+    
+    .chatgpt-title {
+        font-size: 2.25rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: #202123;
+        text-align: center;
+    }
+    
+    .chatgpt-subtitle {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #6e6e80;
+        margin-bottom: 2.5rem;
+        max-width: 600px;
+        text-align: center;
+    }
+    
+    .input-container {
+        width: 100%;
+        max-width: 760px;
+        position: relative;
+        margin-bottom: 40px;
+    }
+    
+    .chat-input-wrapper {
+        display: flex;
+        align-items: center;
+        background-color: #ffffff;
+        border: 1px solid #d9d9e3;
+        border-radius: 12px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        padding: 12px 16px;
+        position: relative;
+    }
+    
+    .chat-input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        font-size: 1rem;
+        padding: 8px 0;
+        min-height: 24px;
+        resize: none;
+        outline: none;
+    }
+    
+    .chat-input::placeholder {
+        color: #8e8ea0;
+    }
+    
+    .chat-buttons {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .chat-input-icon {
+        color: #8e8ea0;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+    
+    .chat-input-icon:hover {
+        background-color: rgba(0,0,0,0.05);
+    }
+    
+    .chat-send-button {
+        color: #8e8ea0;
+        background: none;
+        border: none;
+        padding: 6px 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .chat-send-button:hover {
+        background-color: rgba(0,0,0,0.05);
+    }
+    
+    .chat-send-button i {
+        font-size: 1rem;
+    }
+    
+    .example-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+        width: 100%;
+        max-width: 760px;
+        margin-top: 2rem;
+    }
+    
+    .example-box {
+        background-color: #f7f7f8;
+        border: 1px solid rgba(0,0,0,0.05);
+        border-radius: 8px;
+        padding: 16px;
+        text-align: left;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .example-box:hover {
+        background-color: #f0f0f1;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    
+    .example-title {
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+        color: #202123;
+    }
+    
+    .example-text {
+        font-size: 0.85rem;
+        color: #6e6e80;
+        margin: 0;
+    }
+    
+    .chatgpt-btn-primary {
+        background-color: #202123;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        font-size: 1rem;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+    
+    .chatgpt-btn-primary:hover {
+        background-color: #353740;
+        color: white;
+    }
+    
+    .chatgpt-btn-outline {
+        background-color: transparent;
+        color: #202123;
+        
+        padding: 8px 16px;
+        font-size: 0.9rem;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+    
+    .chatgpt-btn-outline:hover {
+        background-color: rgba(0,0,0,0.05);
+    }
+    
+    .chatgpt-footer {
+        padding: 20px;
+        text-align: center;
+        font-size: 0.85rem;
+        color: #8e8ea0;
+        background-color: #ffffff;
+       
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+    
+    .footer-links {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 12px;
+    }
+    
+    .footer-link {
+        color: #8e8ea0;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+    
+    .footer-link:hover {
+        color: #202123;
+        text-decoration: underline;
+    }
+    
+    @media (max-width: 768px) {
+        .chatgpt-header {
+            padding: 12px 16px;
+        }
+        
+        .chatgpt-main {
+            padding: 80px 12px 100px;
+        }
+        
+        .chatgpt-title {
+            font-size: 1.75rem;
+        }
+        
+        .chatgpt-subtitle {
+            font-size: 1rem;
+            padding: 0 12px;
+        }
+        
+        .example-container {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<!-- 添加特殊类名用于首页 -->
+<div class="landing-container landing-page">
+    <header class="chatgpt-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <img src="/static/images/logo.png" alt="小羊系统" height="28" class="me-2">
+            <h4 class="mb-0 fw-bold" style="font-size: 1.1rem;">小羊系统</h4>
+        </div>
+        
+        <div>
+            {% if user.is_authenticated %}
+            <a href="{% url 'chat:chat' %}" class="chatgpt-btn-outline me-2">进入对话</a>
+            <a href="{% url 'logout' %}" class="chatgpt-btn-outline">退出登录</a>
+            {% else %}
+            <a href="{% url 'login' %}" class="chatgpt-btn-outline">登录</a>
+            {% endif %}
+        </div>
+    </header>
+    
+    <main class="chatgpt-main">
+        <h1 class="chatgpt-title">有什么可以帮忙的?</h1>
+        <p class="chatgpt-subtitle">基于先进的大语言模型，提供流畅的对话体验和专业的解决方案，让您的工作和学习更加高效</p>
+        
+        <div class="input-container">
+            <div class="chat-input-wrapper">
+                <textarea class="chat-input" placeholder="向我提问任何问题..." rows="1"></textarea>
+                <div class="chat-buttons">
+                    <div class="chat-input-icon">
+                        <i class="fas fa-paperclip"></i>
+                    </div>
+                    <button class="chat-send-button">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        
+           
+    </main>
+    
+    <footer class="chatgpt-footer">
+        <p class="mb-0">© 2025 小羊系统 - 基于 Python/Django/大语言模型 构建</p>
+    </footer>
+    
+    <script>
+        // 添加特殊类到body和app-container，解决布局冲突
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.classList.add('landing-body');
+            
+            // 查找并修改app-container
+            const appContainer = document.querySelector('.app-container');
+            if (appContainer) {
+                appContainer.classList.add('landing-app-container');
+                
+                // 确保没有display:flex设置
+                appContainer.style.display = 'block';
+            }
+            
+            const chatInput = document.querySelector('.chat-input');
+            const sendButton = document.querySelector('.chat-send-button');
+            
+            // 自动调整输入框高度
+            chatInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
+            
+            // 点击示例框，填充到输入框
+            document.querySelectorAll('.example-box').forEach(box => {
+                box.addEventListener('click', function() {
+                    const exampleText = this.querySelector('.example-text').textContent;
+                    chatInput.value = exampleText;
+                    chatInput.style.height = 'auto';
+                    chatInput.style.height = (chatInput.scrollHeight) + 'px';
+                    chatInput.focus();
+                });
+            });
+            
+            // 发送按钮点击
+            sendButton.addEventListener('click', function() {
+                if (chatInput.value.trim()) {
+                    {% if user.is_authenticated %}
+                    // 创建新对话并附带初始消息
+                    const message = chatInput.value.trim();
+                    // 将消息存储到 localStorage
+                    localStorage.setItem('new_chat_message', message);
+                    // 重定向到新对话页面
+                    window.location.href = "{% url 'chat:new_conversation' %}";
+                    {% else %}
+                    window.location.href = "{% url 'login' %}";
+                    {% endif %}
+                }
+            });
+            
+            // 回车发送
+            chatInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (this.value.trim()) {
+                        {% if user.is_authenticated %}
+                        // 创建新对话并附带初始消息
+                        const message = this.value.trim();
+                        // 将消息存储到 localStorage
+                        localStorage.setItem('new_chat_message', message);
+                        // 重定向到新对话页面
+                        window.location.href = "{% url 'chat:new_conversation' %}";
+                        {% else %}
+                        window.location.href = "{% url 'login' %}";
+                        {% endif %}
+                    }
+                }
+            });
+        });
+    </script>
+</div>
+{% endblock %} 

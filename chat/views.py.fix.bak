@@ -1,0 +1,1704 @@
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse, StreamingHttpResponse, FileResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.contrib.auth.models import User
+from django.db import transaction
+from django.contrib import messages
+from django.urls import reverse
+from django.utils import timezone
+import logging
+import re
+import traceback
+
+from .models import Conversation, Message, ChatSetting, AIModel
+from .services import ChatAPIService
+import json
+
+# 添加积分模块的导入
+from credits.models import UserProfile, CreditRecord, TokenPrice, SystemConfig
+from django.core.exceptions import ObjectDoesNotExist
+
+# 获取chat应用的日志记录器
+logger = logging.getLogger('chat')
+
+def index(request):
+    """首页视图"""
+    return render(request, 'chat/index.html')
+
+@login_required
+def chat(request, id=None):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
+    # 获取当前用户的所有对话
+    conversations = Conversation.objects.filter(user=request.user).order_by('-updated_at')
+    
+    # 获取对话ID，优先使用URL路径中的id参数，其次使用查询参数
+    conversation_id = id or request.GET.get('id')
+    
+    try:
+        # 尝试获取当前对话
+        if conversation_id:
+            current_conversation = Conversation.objects.get(id=conversation_id, user=request.user)
+        else:
+            # 如果没有指定对话ID，使用最新的对话，或创建一个新对话
+            if conversations.exists():
+                current_conversation = conversations.first()
+            else:
+                current_conversation = Conversation.objects.create(
+                    user=request.user,
+                    title='新对话',
+                    model='gpt-4o'
+                )
+    except Conversation.DoesNotExist:
+        # 如果指定的对话不存在，创建一个新对话
+        current_conversation = Conversation.objects.create(
+            user=request.user,
+            title='新对话',
+            model='gpt-4o'
+        )
+    
+    # 获取当前对话的所有消息
+    messages = Message.objects.filter(conversation=current_conversation).order_by('created_at')
+    
+    # 获取用户的聊天设置，处理多个记录的情况
+    chat_settings = ChatSetting.objects.filter(user=request.user)
+    if chat_settings.exists():
+        # 使用最新的设置记录
+        chat_setting = chat_settings.order_by('-updated_at').first()
+    else:
+        # 如果没有设置记录，创建一个新的
+        chat_setting = ChatSetting.objects.create(
+            user=request.user,
+            model='gpt-4o',
+            temperature=0.7,
+            max_tokens=1500
+        )
+    
+    # 获取可用模型列表
+    available_models = AIModel.objects.filter(is_active=True).order_by('model_id')
+    
+    # 添加日期范围用于模板中过滤对话
+    from datetime import datetime, timedelta
+    import pytz
+    
+    # 今天的日期（用户时区）
+    today_date = datetime.now().date().strftime('%Y-%m-%d')
+    
+    # 昨天的日期
+    yesterday_date = (datetime.now() - timedelta(days=1)).date().strftime('%Y-%m-%d')
+    
+    # 一周前的日期
+    week_ago_date = (datetime.now() - timedelta(days=7)).date().strftime('%Y-%m-%d')
+    
+    # 预处理分类对话列表
+    starred_conversations = [conv for conv in conversations if conv.is_starred]
+    
+    today_conversations = []
+    yesterday_conversations = []
+    week_conversations = []
+    earlier_conversations = []
+    
+    today_date_obj = datetime.now().date()
+    yesterday_date_obj = (datetime.now() - timedelta(days=1)).date()
+    week_ago_date_obj = (datetime.now() - timedelta(days=7)).date()
+    
+    for conv in conversations:
+        conv_date = conv.created_at.date()
+        if conv_date == today_date_obj:
+            today_conversations.append(conv)
+        elif conv_date == yesterday_date_obj:
+            yesterday_conversations.append(conv)
+        elif conv_date > week_ago_date_obj:
+            week_conversations.append(conv)
+        else:
+            earlier_conversations.append(conv)
+    
+    # 转换模型数据，包含功能支持信息
+    models_with_features = []
+    for model in available_models:
+        models_with_features.append({
+            'model_id': model.model_id,
+            'display_name': model.display_name,
+            'description': model.description,
+            'features': model.get_features(),
+            'supports_stream': model.supports_stream,
+            'supports_image_analysis': model.supports_image_analysis,
+            'supports_file_analysis': model.supports_file_analysis,
+            'supports_image_generation': model.supports_image_generation,
+            'supports_web_search': model.supports_web_search,
+            'supports_audio': model.supports_audio,
+            'max_context_length': model.max_context_length
+        })
+    
+    context = {
+        'conversations': conversations,
+        'current_conversation': current_conversation,
+        'messages': messages,
+        'chat_setting': chat_setting,
+        'available_models': available_models,  # 保留原始模型列表
+        'models_with_features': models_with_features,  # 添加带有功能信息的模型列表
+        'today_date': today_date,
+        'yesterday_date': yesterday_date,
+        'week_ago_date': week_ago_date,
+        'starred_conversations': starred_conversations,
+        'today_conversations': today_conversations,
+        'yesterday_conversations': yesterday_conversations,
+        'week_conversations': week_conversations,
+        'earlier_conversations': earlier_conversations,
+    }
+    
+    return render(request, 'chat/chat.html', context)
+
+@login_required
+def latest_conversation(request):
+    """跳转到最近的对话，如果没有则创建新对话"""
+    # 获取当前用户的所有对话
+    conversations = Conversation.objects.filter(user=request.user).order_by('-updated_at')
+    
+    if conversations.exists():
+        # 如果存在对话，跳转到最近的一个
+        latest_conversation = conversations.first()
+        return redirect('chat:chat_with_id', id=latest_conversation.id)
+    else:
+        # 如果没有对话，创建一个新对话
+        # 获取用户设置的模型
+        chat_settings = ChatSetting.objects.filter(user=request.user)
+        if chat_settings.exists():
+            # 使用最新的设置记录
+            chat_setting = chat_settings.order_by('-updated_at').first()
+            selected_model = chat_setting.model
+        else:
+            # 如果没有设置记录，创建一个新的
+            chat_setting = ChatSetting.objects.create(
+                user=request.user,
+                model='gpt-4o',  # 默认模型
+                temperature=0.7,
+                max_tokens=1500
+            )
+            selected_model = 'gpt-4o'
+        
+        # 使用用户当前选择的模型创建对话
+        conversation = Conversation.objects.create(
+            user=request.user,
+            title="新对话",
+            model=selected_model  # 使用用户选择的模型
+        )
+        return redirect('chat:chat_with_id', id=conversation.id)
+
+@login_required
+def new_conversation(request):
+    """创建新对话"""
+    # 获取用户设置的模型
+    chat_settings = ChatSetting.objects.filter(user=request.user)
+    if chat_settings.exists():
+        # 使用最新的设置记录
+        chat_setting = chat_settings.order_by('-updated_at').first()
+        selected_model = chat_setting.model
+    else:
+        # 如果没有设置记录，创建一个新的
+        chat_setting = ChatSetting.objects.create(
+            user=request.user,
+            model='gpt-4o',  # 默认模型
+            temperature=0.7,
+            max_tokens=1500
+        )
+        selected_model = 'gpt-4o'
+    
+    # 使用用户当前选择的模型创建对话
+    conversation = Conversation.objects.create(
+        user=request.user,
+        title="新对话",
+        model=selected_model  # 使用用户选择的模型
+    )
+    return redirect('chat:chat_with_id', id=conversation.id)
+
+@login_required
+@csrf_exempt
+@require_POST
+def delete_conversation(request, conversation_id):
+    """删除对话"""
+    try:
+        conversation = get_object_or_404(Conversation, id=conversation_id, user=request.user)
+        conversation.delete()
+        
+        # 对于AJAX请求返回JSON响应
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({'success': True, 'message': '对话已删除'})
+        
+        # 对于普通请求返回重定向
+        return redirect('chat:chat')
+    except Exception as e:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+        return redirect('chat:chat')
+
+@login_required
+def rename_conversation(request, conversation_id):
+    """重命名对话"""
+    if request.method == 'POST':
+        conversation = get_object_or_404(Conversation, id=conversation_id, user=request.user)
+        title = request.POST.get('title')
+        if title:
+            conversation.title = title
+            conversation.save()
+        return redirect('chat:chat', id=conversation.id)
+    return redirect('chat:chat')
+
+@login_required
+@csrf_exempt
+@require_POST
+def send_message(request):
+    """发送消息并接收AI回复"""
+    try:
+        data = json.loads(request.body)
+        conversation_id = data.get('conversation_id')
+        user_message = data.get('message')
+        selected_model = data.get('model')  # 获取前端选择的模型
+        
+        if not conversation_id or not user_message:
+            return JsonResponse({'error': '缺少必要参数'}, status=400)
+        
+        # 获取对话
+        conversation = get_object_or_404(Conversation, id=conversation_id, user=request.user)
+        
+        # 获取用户设置
+        chat_settings = ChatSetting.objects.filter(user=request.user)
+        if chat_settings.exists():
+            # 使用最新的设置记录
+            chat_setting = chat_settings.order_by('-updated_at').first()
+        else:
+            # 如果没有设置记录，创建一个新的
+            chat_setting = ChatSetting.objects.create(
+                user=request.user,
+                model='gpt-4o',
+                temperature=0.7,
+                max_tokens=1500
+            )
+        
+        # 处理不同格式的消息内容
+        user_message_content = ""
+        if isinstance(user_message, list):
+            # 处理列表格式消息
+            for item in user_message:
+                if isinstance(item, dict) and 'type' in item and item['type'] == 'text':
+                    user_message_content += item.get('text', '')
+                elif isinstance(item, str):
+                    user_message_content += item
+        elif isinstance(user_message, dict) and 'type' in user_message and user_message['type'] == 'text':
+            # 处理字典格式消息
+            user_message_content = user_message.get('text', '')
+        elif isinstance(user_message, str):
+            # 处理字符串格式消息
+            user_message_content = user_message
+        else:
+            # 其他情况转换为字符串
+            user_message_content = str(user_message)
+        
+        # 检查用户积分
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+        except ObjectDoesNotExist:
+            # 如果用户资料不存在，创建一个
+            user_profile = UserProfile.objects.create(user=request.user, credits=0)
+        
+        # 优先使用前端传递的模型，如果没有则使用设置中的模型
+        model_to_use = selected_model if selected_model else chat_setting.model
+        
+        # 取得模型对应的价格配置
+        try:
+            ai_model = AIModel.objects.get(model_id=model_to_use)
+            token_price = TokenPrice.objects.get(model=ai_model)
+        except Exception as e:
+            logger.error(f"获取模型时出错: {str(e)}")
+            return JsonResponse({'error': f'获取模型时出错: {str(e)}'}, status=500)
+        except ObjectDoesNotExist:
+            return JsonResponse({'error': '模型价格配置不存在'}, status=400)
+        
+        # 估算token数量和所需积分（简单估算）
+        input_tokens = len(user_message_content) / 3  # 简单估算，每3个字符约1个token
+        estimated_input_cost = input_tokens * token_price.input_price / 1000
+        
+        # 估计输出token成本 (假设输出是输入的3倍)
+        estimated_output_tokens = input_tokens * 3
+        estimated_output_cost = estimated_output_tokens * token_price.output_price / 1000
+        
+        # 总成本估算
+        estimated_total_cost = round(estimated_input_cost + estimated_output_cost)
+        
+        # 至少收费1积分
+        if estimated_total_cost < 1:
+            estimated_total_cost = 1
+        
+        # 检查积分是否足够
+        if estimated_total_cost > user_profile.credits:
+            return JsonResponse({
+                'error': '积分不足，请充值后再试',
+                'credits_info': {
+                    'required': estimated_total_cost,
+                    'current': user_profile.credits,
+                    'missing': estimated_total_cost - user_profile.credits
+                },
+                'code': 'INSUFFICIENT_CREDITS',
+                'recharge_url': reverse('credits:recharge')
+            }, status=400)
+        
+        # 使用事务确保数据一致性
+        with transaction.atomic():
+            # 保存用户消息
+            user_msg = Message.objects.create(
+                conversation=conversation,
+                role='user',
+                content=user_message_content
+            )
+            
+            # 更新对话时间和模型
+            conversation.model = model_to_use
+            
+            # 检查是否是第一条消息，如果是，更新对话标题为该消息的截断版本
+            message_count = Message.objects.filter(conversation=conversation).count()
+            if message_count <= 1 and conversation.title == "新对话":
+                # 截取用户消息的前20个字符作为标题，如果超过20个字符则添加省略号
+                title = user_message_content[:20]
+                if len(user_message_content) > 20:
+                    title += "..."
+                conversation.title = title
+            
+            conversation.save()  # 自动更新updated_at
+            
+            # 准备API请求
+            messages_for_api = []
+            
+            # 获取对话历史
+            conversation_messages = Message.objects.filter(conversation=conversation).order_by('created_at')
+            for msg in conversation_messages:
+                messages_for_api.append({
+                    'role': msg.role,
+                    'content': msg.content
+                })
+            
+            # 添加系统提示（如果存在）
+            try:
+                if ai_model and hasattr(ai_model, 'system_message') and ai_model.system_message:
+                    messages_for_api.insert(0, {
+                        "role": "system",
+                        "content": ai_model.system_message
+                    })
+                    logger.info(f"添加系统提示: {ai_model.system_message}")
+            except Exception as e:
+                logger.error(f"添加系统提示时出错: {str(e)}")
+            
+            # 调用聊天API - 使用指定的模型
+            # 获取与选择模型关联的服务
+            api_service = ChatAPIService.get_service_for_model(model_to_use)
+            response = api_service.process_request(
+                model_id=model_to_use,  # 使用指定的模型
+                messages=messages_for_api,
+                temperature=chat_setting.temperature,
+                max_tokens=chat_setting.max_tokens,
+                top_p=chat_setting.top_p,
+                presence_penalty=chat_setting.presence_penalty,
+                frequency_penalty=chat_setting.frequency_penalty
+            )
+            
+            if 'error' in response:
+                return JsonResponse({'error': response['error']}, status=500)
+            
+            # 解析API响应
+            assistant_message = ""
+            
+            # 处理图像生成模型的特殊响应格式
+            model_type = ChatAPIService.get_model_type(model_to_use)
+            if model_type == 'image':
+                if 'data' in response and len(response['data']) > 0:
+                    image_url = response['data'][0].get('url', '')
+                    if image_url:
+                        image_content = f"![生成的图像]({image_url})"
+                        full_response = image_content
+                        yield f"data: {json.dumps({'content': image_content, 'is_full': True})}\n\n"
+                        
+                        # 保存助手的图像消息到数据库
+                        Message.objects.create(
+                            conversation=conversation,
+                            role='assistant',
+                            content=full_response,
+                            has_image=True,
+                            image_url=image_url
+                        )
+                        yield f"data: {json.dumps({'finished': True})}\n\n"
+                    else:
+                        error_message = "图像生成失败，请稍后再试。"
+                        yield f"data: {json.dumps({'content': error_message, 'is_full': True})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'error': '图像生成响应格式错误'})}\n\n"
+            else:
+                # 处理聊天模型的标准响应格式
+                assistant_message = response['choices'][0]['message']['content']
+            
+            # 提取推理过程
+            reasoning = ChatAPIService.extract_reasoning(response, model_to_use)
+            
+            # 保存助手回复
+            assistant_msg = Message.objects.create(
+                conversation=conversation,
+                role='assistant',
+                content=assistant_message
+            )
+            
+            # 扣除积分并记录
+            user_profile.credits -= estimated_total_cost
+            user_profile.save()
+            
+            # 记录积分变动
+            CreditRecord.objects.create(
+                user=request.user,
+                credit_change=-estimated_total_cost,
+                record_type='usage',
+                description=f"使用{ai_model.display_name}回答问题",
+                message=user_msg,
+                balance=user_profile.credits
+            )
+            
+            # 构建响应数据
+            response_data = {
+                'message': assistant_message,
+                'conversation_id': conversation.id,
+                'credits_used': estimated_total_cost,
+                'credits_remaining': user_profile.credits,
+                'title': conversation.title  # 返回对话标题
+            }
+            
+            # 如果有推理数据，添加到响应中
+            if reasoning:
+                response_data['reasoning'] = reasoning
+            
+            return JsonResponse(response_data)
+        
+    except Exception as e:
+        logger.error(f"send_message处理失败: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@csrf_exempt
+@require_POST
+def stream_message(request):
+    """流式发送消息并接收AI回复"""
+    try:
+        # 获取JSON数据
+        data = json.loads(request.body)
+        user_message = data.get('message', '').strip()
+        conversation_id = data.get('conversation_id')
+        selected_model = data.get('model', settings.DEFAULT_MODEL)
+        
+        # 获取API服务
+        api_service = ChatAPIService()
+        
+        # 初始化上下文
+        context = {}
+        
+        # 检查消息是否为空
+        if not user_message:
+            return JsonResponse({'error': '消息不能为空'}, status=400)
+        
+        # 获取或创建会话
+        user_profile = request.user.userprofile
+        
+        if conversation_id:
+            try:
+                conversation = Conversation.objects.get(id=conversation_id, user=request.user)
+            except Conversation.DoesNotExist:
+                return JsonResponse({'error': f'会话 ID {conversation_id} 不存在'}, status=404)
+        else:
+            # 创建新会话
+            conversation = Conversation.objects.create(
+                user=request.user,
+                title=user_message[:30] + "..." if len(user_message) > 30 else user_message
+            )
+        
+        # 如果用户消息包含图片URL，进行预处理
+        image_url = None
+        content_array = None
+        
+        if '[图片]' in user_message or '![' in user_message:
+            logger.info("检测到用户消息中包含图片标记")
+            
+            # 使用正则表达式搜索图片URL
+            img_urls = []
+            url_patterns = [
+                r'!\[.*?\]\((https?://[^)]+)\)',  # Markdown格式
+                r'<img.*?src=[\'"]([^\'"]+)[\'"].*?>',  # HTML格式
+                r'https?://[^\s<>"\']+\.(?:jpg|jpeg|png|gif|webp|bmp)(?:\?[^\s<>"\']*)?' # 纯URL
+            ]
+            
+            for pattern in url_patterns:
+                urls = re.findall(pattern, user_message)
+                if urls:
+                    img_urls.extend(urls)
+            
+            if img_urls:
+                image_url = img_urls[0]  # 使用第一个URL
+                logger.info(f"提取到图片URL: {image_url}")
+                
+                # 为Vision模型准备content_array
+                try:
+                    # 识别可能的图片描述
+                    img_description_match = re.search(r'!\[(.*?)\]', user_message)
+                    img_description = "图片" if not img_description_match else img_description_match.group(1)
+                    
+                    # 提取图片之外的文本内容作为提示
+                    text_content = re.sub(r'!\[.*?\]\(.*?\)', '', user_message).strip()
+                    if not text_content:
+                        text_content = "请描述这张图片"
+                    
+                    # 构建content_array
+                    content_array = [
+                        {
+                            "type": "text", 
+                            "text": text_content
+                        }
+                    ]
+                    
+                    # 处理多个图片链接
+                    image_parts = []
+                    for url in img_urls:
+                        # 尝试为每个图片寻找对应的描述
+                        desc_match = re.search(r'!\[(.*?)\]\(\s*' + re.escape(url) + r'\s*\)', user_message)
+                        desc = "图片" if not desc_match or not desc_match.group(1) else desc_match.group(1)
+                        image_parts.append((desc, url))
+                    
+                    # 添加所有图片URL
+                    for desc, url in image_parts:
+                        content_array.append({
+                            "type": "image_url", 
+                            "image_url": {
+                                "url": url,
+                                "detail": "auto"  # 添加detail参数，使用auto自动决定分析详细程度
+                            }
+                        })
+                    
+                    # 记录第一个图片URL，便于保存消息
+                    if image_parts:
+                        image_url = image_parts[0][1]
+                except Exception as e:
+                    logger.error(f"提取图片URL出错: {e}")
+                    content_array = None
+            
+        # 将用户消息保存到数据库
+        user_msg = Message.objects.create(
+            conversation=conversation,
+            role="user",
+            content=user_message
+        )
+        
+        # 如果有图片URL，更新记录
+        if image_url:
+            user_msg.has_image = True
+            user_msg.image_url = image_url
+            user_msg.save()
+        
+        # 获取对话历史记录
+        chat_history = Message.objects.filter(conversation=conversation).order_by('created_at')
+        
+        # 构建消息列表
+        messages = []
+        
+        # 首先初始化ai_model变量
+        ai_model = None
+        
+        try:
+            # 根据选择的模型ID获取模型对象
+            if selected_model:
+                try:
+                    ai_model = AIModel.objects.get(model_id=selected_model)
+                    logger.info(f"使用模型: {ai_model.name} ({ai_model.model_id})")
+                except AIModel.DoesNotExist:
+                    logger.warning(f"找不到模型ID为 {selected_model} 的模型，将使用默认模型")
+                    ai_model = None
+            
+            # 如果没有指定模型或模型不存在，使用默认模型
+            if not ai_model:
+                # 尝试获取默认模型
+                try:
+                    ai_model = AIModel.objects.get(model_id=settings.DEFAULT_MODEL)
+                    logger.info(f"使用默认模型: {ai_model.name} ({ai_model.model_id})")
+                except AIModel.DoesNotExist:
+                    # 如果默认模型不存在，获取第一个可用模型
+                    try:
+                        ai_model = AIModel.objects.filter(is_active=True).first()
+                        if ai_model:
+                            logger.info(f"使用第一个可用模型: {ai_model.name} ({ai_model.model_id})")
+                        else:
+                            logger.error("找不到可用模型")
+                            return JsonResponse({'error': '找不到可用模型'}, status=500)
+                    except Exception as e:
+                        logger.error(f"获取模型时出错: {str(e)}")
+                        return JsonResponse({'error': f'获取模型时出错: {str(e)}'}, status=500)
+            
+            # 添加系统提示（如果存在）
+            if ai_model and ai_model.system_message:
+                messages.append({
+                    "role": "system",
+                    "content": ai_model.system_message
+                })
+                logger.info(f"添加系统提示: {ai_model.system_message[:50]}...")
+            
+            # 添加对话历史
+            message_count = 0
+            token_count = 0
+            max_tokens = settings.MAX_CONTEXT_TOKENS
+            max_messages = settings.MAX_CONTEXT_MESSAGES
+            
+            # 先计算每条消息的token数
+            for msg in reversed(chat_history):
+                # 跳过系统消息
+                if msg.role == 'system':
+                    continue
+                
+                message_count += 1
+                
+                # 估算token数量（简单估算）
+                msg_token_count = len(msg.content) // 4
+                token_count += msg_token_count
+                
+                # 检查是否超出限制
+                if message_count >= max_messages or token_count >= max_tokens:
+                    logger.info(f"历史消息达到限制: {message_count}条消息，约{token_count}个token")
+                    break
+            
+            # 再添加消息，按正序添加
+            for msg in chat_history.order_by('created_at'):
+                # 跳过系统消息和超出限制的消息
+                if msg.role == 'system' or message_count <= 0:
+                    continue
+                
+                message_count -= 1
+                
+                # 添加消息到列表
+                if content_array and msg == user_msg:
+                    # 如果是当前用户消息且有content_array，使用content_array
+                    messages.append({
+                        "role": msg.role,
+                        "content": content_array
+                    })
+                else:
+                    # 否则使用普通消息格式
+                    messages.append({
+                        "role": msg.role,
+                        "content": msg.content
+                    })
+            
+            # 获取模型类型，用于确定API行为
+            model_type = 'chat'
+            if ai_model and ai_model.model_id:
+                if 'vision' in ai_model.model_id.lower() or ai_model.model_id.startswith('gpt-4-vision'):
+                    model_type = 'vision'
+                elif any(img_keyword in ai_model.model_id.lower() for img_keyword in ['dall-e', 'image', 'img', 'stable']):
+                    model_type = 'image'
+            
+            # 如果是图片生成模型，只使用最后一条用户消息
+            if model_type == 'image':
+                logger.info("检测到图片生成模型，只使用最后一条用户消息")
+                
+                # 检查系统消息
+                system_message = None
+                for msg in messages:
+                    if msg['role'] == 'system':
+                        system_message = msg
+                        break
+                
+                messages = []
+                
+                # 保留系统消息（如果有）
+                if system_message:
+                    messages.append(system_message)
+                
+                # 添加用户消息
+                messages.append({
+                    "role": "user",
+                    "content": user_message
+                })
+            
+            # 估算成本
+            total_input_tokens = len(user_message) // 4
+            estimated_total_tokens = total_input_tokens * 2  # 简单估计输出为输入的两倍
+            
+            # 获取模型价格
+            input_price_per_1k = 0.01  # 默认价格
+            output_price_per_1k = 0.03  # 默认价格
+            
+            if ai_model:
+                input_price_per_1k = ai_model.input_price_per_1k or input_price_per_1k
+                output_price_per_1k = ai_model.output_price_per_1k or output_price_per_1k
+            
+            # 计算估计成本（以积分为单位）
+            estimated_total_cost = (
+                (total_input_tokens / 1000 * input_price_per_1k) + 
+                (estimated_total_tokens / 1000 * output_price_per_1k)
+            ) * 100  # 转换为积分
+            
+            # 四舍五入到整数
+            estimated_total_cost = max(1, round(estimated_total_cost))
+            
+            # 检查用户积分是否足够
+            if user_profile.credits < estimated_total_cost:
+                return JsonResponse({
+                    'error': '积分不足',
+                    'code': 'INSUFFICIENT_CREDITS',
+                    'required': estimated_total_cost,
+                    'available': user_profile.credits
+                }, status=400)
+            
+            # 决定使用哪个模型
+            model_to_use = ai_model.model_id if ai_model else settings.DEFAULT_MODEL
+            
+            def event_stream():
+                full_response = ""
+                
+                try:
+                    # 准备请求参数
+                    request_kwargs = {
+                        'messages': messages,
+                        'temperature': ai_model.temperature if ai_model and ai_model.temperature is not None else 0.7,
+                        'max_tokens': ai_model.max_tokens if ai_model and ai_model.max_tokens is not None else 1500,
+                        'stream': True
+                    }
+                    
+                    # 获取流式响应
+                    for response in api_service.stream_process_request(model_id=model_to_use, **request_kwargs):
+                        if 'error' in response:
+                            error_message = response.get('error', '未知错误')
+                            logger.error(f"API流式响应错误: {error_message}")
+                            yield f"data: {json.dumps({'error': error_message})}\n\n"
+                            break
+                        
+                        # 从聊天模型的流式响应中提取内容
+                        if 'choices' in response:
+                            delta_content = response['choices'][0].get('delta', {}).get('content', '')
+                            
+                            if delta_content:
+                                full_response += delta_content
+                                yield f"data: {json.dumps({'content': delta_content})}\n\n"
+                            
+                            # 检查是否完成
+                            finish_reason = response['choices'][0].get('finish_reason')
+                            if finish_reason:
+                                logger.info(f"流式响应完成，原因: {finish_reason}")
+                                
+                                # 提取推理过程
+                                reasoning = ChatAPIService.extract_reasoning(response, model_to_use)
+                                if reasoning:
+                                    yield f"data: {json.dumps({'reasoning': reasoning})}\n\n"
+                                
+                                # 保存完整回复
+                                try:
+                                    assistant_msg = Message.objects.create(
+                                        conversation=conversation,
+                                        role='assistant',
+                                        content=full_response
+                                    )
+                                    
+                                    # 扣除积分
+                                    actual_tokens = response.get('usage', {}).get('total_tokens', estimated_total_tokens)
+                                    actual_cost = max(1, round((actual_tokens / 1000 * output_price_per_1k) * 100))
+                                    
+                                    user_profile.credits -= actual_cost
+                                    user_profile.save()
+                                    
+                                    # 返回积分信息
+                                    yield f"data: {json.dumps({'credits_used': actual_cost, 'credits_remaining': user_profile.credits})}\n\n"
+                                    
+                                    # 标记已完成
+                                    yield f"data: {json.dumps({'finished': True})}\n\n"
+                                except Exception as e:
+                                    error_message = f"保存助手消息时出错: {str(e)}"
+                                    logger.error(error_message)
+                                    yield f"data: {json.dumps({'error': error_message})}\n\n"
+                                
+                                break
+                    else:
+                        # 从图像生成响应中提取URL
+                        if 'data' in response and len(response['data']) > 0:
+                            image_url = response['data'][0].get('url', '')
+                            logger.info(f"收到图像URL: {image_url}")
+                            if image_url:
+                                image_content = f"![生成的图像]({image_url})"
+                                full_response = image_content
+                                yield f"data: {json.dumps({'content': image_content, 'is_full': True})}\n\n"
+                                
+                                # 保存助手的图像消息到数据库
+                                try:
+                                    # 检查是否已经存在相同图片URL的消息，避免重复保存
+                                    existing_msg = Message.objects.filter(
+                                        conversation=conversation,
+                                        role='assistant',
+                                        has_image=True,
+                                        image_url=image_url
+                                    ).first()
+                                    
+                                    if not existing_msg:
+                                        Message.objects.create(
+                                            conversation=conversation,
+                                            role='assistant',
+                                            content=full_response,
+                                            has_image=True,
+                                            image_url=image_url
+                                        )
+                                    else:
+                                        logger.info(f"跳过保存已存在的图片消息: {image_url}")
+                                        
+                                    yield f"data: {json.dumps({'finished': True})}\n\n"
+                                except Exception as e:
+                                    error_msg = f"保存图像消息失败: {str(e)}"
+                                    logger.error(error_msg)
+                                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                            else:
+                                error_message = "图像生成失败，请稍后再试。"
+                                logger.warning(f"图像生成失败: 未返回URL")
+                                yield f"data: {json.dumps({'content': error_message, 'is_full': True})}\n\n"
+                        else:
+                            error_message = "图像生成响应格式错误"
+                            logger.warning(f"图像生成响应格式错误: {response}")
+                            yield f"data: {json.dumps({'content': error_message, 'is_full': True})}\n\n"
+                
+                except Exception as e:
+                    error_message = f"处理流式响应时出错: {str(e)}"
+                    logger.error(error_message)
+                    yield f"data: {json.dumps({'error': error_message})}\n\n"
+                    traceback.print_exc()
+                
+                # 如果循环正常结束但没有明确的finish_reason，也保存消息
+                if full_response and not Message.objects.filter(
+                    conversation=conversation, 
+                    role='assistant', 
+                    content=full_response
+                ).exists():
+                    try:
+                        Message.objects.create(
+                            conversation=conversation,
+                            role='assistant',
+                            content=full_response
+                        )
+                        yield f"data: {json.dumps({'finished': True})}\n\n"
+                    except Exception as e:
+                        error_message = f"保存助手消息时出错: {str(e)}"
+                        logger.error(error_message)
+                        yield f"data: {json.dumps({'error': error_message})}\n\n"
+            
+            return StreamingHttpResponse(
+                event_stream(),
+                content_type='text/event-stream'
+            )
+        
+    except Exception as e:
+        logger.error(f"stream_message整体处理失败: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def update_settings(request):
+    """更新用户设置"""
+    if request.method == 'POST':
+        try:
+            chat_settings = ChatSetting.objects.filter(user=request.user)
+            
+            # 获取用户提交的设置
+            temperature = float(request.POST.get('temperature', 0.7))
+            max_tokens = int(request.POST.get('max_tokens', 1500))
+            # 从用户选择中获取模型，而不是强制使用固定模型
+            model = request.POST.get('model', 'gpt-4o')
+            
+            # 从数据库中获取有效的模型列表
+            valid_models = list(AIModel.objects.filter(is_active=True).values_list('model_id', flat=True))
+            # 验证用户选择的模型是否有效
+            if model not in valid_models:
+                model = 'gpt-4o'  # 默认回退到安全模型
+            
+            # 验证温度范围
+            if temperature < 0 or temperature > 2:
+                temperature = 0.7
+                
+            # 限制max_tokens的范围
+            if max_tokens < 100:
+                max_tokens = 100
+            elif max_tokens > 4000:
+                max_tokens = 4000
+                
+            if chat_settings.exists():
+                # 更新现有设置
+                chat_setting = chat_settings.order_by('-updated_at').first()
+                chat_setting.temperature = temperature
+                chat_setting.max_tokens = max_tokens
+                chat_setting.model = model  # 使用验证后的模型
+                
+                # 保存其他设置
+                system_prompt = request.POST.get('system_prompt')
+                if system_prompt:
+                    chat_setting.system_prompt = system_prompt
+                
+                top_p = request.POST.get('top_p')
+                if top_p:
+                    chat_setting.top_p = float(top_p)
+                
+                presence_penalty = request.POST.get('presence_penalty')
+                if presence_penalty:
+                    chat_setting.presence_penalty = float(presence_penalty)
+                
+                frequency_penalty = request.POST.get('frequency_penalty')
+                if frequency_penalty:
+                    chat_setting.frequency_penalty = float(frequency_penalty)
+                
+                use_cot = request.POST.get('use_cot') == 'on'
+                chat_setting.use_cot = use_cot
+                
+                use_functions = request.POST.get('use_functions') == 'on'
+                chat_setting.use_functions = use_functions
+                
+                chat_setting.save()
+            else:
+                # 创建新设置
+                chat_setting = ChatSetting.objects.create(
+                    user=request.user,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    model=model  # 使用验证后的模型
+                )
+                
+                # 设置其他参数
+                system_prompt = request.POST.get('system_prompt')
+                if system_prompt:
+                    chat_setting.system_prompt = system_prompt
+                
+                chat_setting.save()
+                
+            # 根据请求类型返回响应
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': '设置已更新',
+                    'settings': {
+                        'temperature': temperature,
+                        'max_tokens': max_tokens,
+                        'model': model
+                    }
+                })
+            else:
+                messages.success(request, '设置已更新')
+                return redirect('chat:chat')
+        except Exception as e:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'更新设置时出错: {str(e)}'
+                })
+            else:
+                messages.error(request, f'更新设置时出错: {str(e)}')
+                return redirect('chat:chat')
+    else:
+        # 获取用户当前设置
+        chat_settings = ChatSetting.objects.filter(user=request.user)
+        if chat_settings.exists():
+            chat_setting = chat_settings.order_by('-updated_at').first()
+        else:
+            # 如果没有设置记录，创建默认值
+            chat_setting = ChatSetting(
+                user=request.user,
+                model='gpt-4o',  # 默认模型
+                temperature=0.7,
+                max_tokens=1500
+            )
+            chat_setting.save()
+            
+        return render(request, 'chat/settings.html', {
+            'chat_setting': chat_setting,
+        })
+
+@login_required
+def cleanup_settings(request):
+    """清理聊天设置，仅保留最新的一条"""
+    if request.method == 'POST':
+        with transaction.atomic():
+            # 获取当前用户的所有设置
+            settings = ChatSetting.objects.filter(user=request.user)
+            
+            # 按更新时间排序
+            ordered_settings = settings.order_by('-updated_at')
+            
+            # 保留最新的一条，删除其余的
+            if ordered_settings.count() > 1:
+                # 获取最新设置的ID
+                latest_id = ordered_settings.first().id
+                
+                # 删除除最新之外的所有设置
+                ChatSetting.objects.filter(user=request.user).exclude(id=latest_id).delete()
+                
+                messages.success(request, '设置已清理，仅保留最新设置')
+            else:
+                messages.info(request, '无需清理，只有一条设置记录')
+    
+    # 重定向回聊天页面
+    return redirect('chat:chat')
+
+# PWA 相关视图函数
+
+def manifest(request):
+    """提供 manifest.json 文件"""
+    import os
+    from django.http import FileResponse, JsonResponse
+    from django.conf import settings
+    
+    try:
+        manifest_path = os.path.join(settings.STATIC_ROOT if hasattr(settings, 'STATIC_ROOT') else os.path.join(settings.BASE_DIR, 'static'), 'manifest.json')
+        
+        # 如果文件不存在于STATIC_ROOT，则使用开发环境的路径
+        if not os.path.exists(manifest_path):
+            manifest_path = os.path.join(settings.BASE_DIR, 'static', 'manifest.json')
+        
+        if os.path.exists(manifest_path):
+            return FileResponse(open(manifest_path, 'rb'), content_type='application/json')
+        else:
+            # 如果文件不存在，则生成一个基本的manifest.json内容
+            return JsonResponse({
+                "name": "小羊系统",
+                "short_name": "小羊系统",
+                "description": "小羊系统 - 为您提供智能服务",
+                "start_url": "/",
+                "display": "standalone",
+                "background_color": "#ffffff",
+                "theme_color": "#333333",
+                "icons": [
+                    {
+                        "src": "/static/images/icon-192x192.svg",
+                        "sizes": "192x192",
+                        "type": "image/svg+xml"
+                    },
+                    {
+                        "src": "/static/images/icon-512x512.svg",
+                        "sizes": "512x512",
+                        "type": "image/svg+xml"
+                    }
+                ]
+            })
+    except Exception as e:
+        # 出现异常时返回简化版本的manifest
+        logger.error(f"Manifest加载出错: {str(e)}")
+        return JsonResponse({
+            "name": "小羊系统",
+            "short_name": "小羊系统",
+            "description": "小羊系统 - 为您提供智能服务",
+            "start_url": "/",
+            "display": "standalone",
+            "background_color": "#ffffff",
+            "theme_color": "#333333",
+            "icons": []
+        })
+
+def service_worker(request):
+    """提供 service-worker.js 文件"""
+    import os
+    from django.http import FileResponse, HttpResponse
+    from django.conf import settings
+    
+    try:
+        sw_path = os.path.join(settings.STATIC_ROOT if hasattr(settings, 'STATIC_ROOT') else os.path.join(settings.BASE_DIR, 'static'), 'js', 'service-worker.js')
+        
+        # 如果文件不存在于STATIC_ROOT，则使用开发环境的路径
+        if not os.path.exists(sw_path):
+            sw_path = os.path.join(settings.BASE_DIR, 'static', 'js', 'service-worker.js')
+        
+        if os.path.exists(sw_path):
+            return FileResponse(open(sw_path, 'rb'), content_type='application/javascript')
+        else:
+            # 如果文件不存在，则返回一个基本的service worker代码
+            basic_sw = """
+            // 缓存名称
+            const CACHE_NAME = 'xiaoyang-system-cache-v2';
+
+            // 需要缓存的资源列表
+            const urlsToCache = [
+              '/',
+              '/static/css/styles.css',
+              '/static/css/community.css',
+              '/static/js/community.js',
+              '/static/images/assistant-avatar.png',
+              '/static/images/chat-welcome.png',
+              '/static/images/default-post.svg',
+              '/static/images/icon-192x192.svg',
+              '/static/images/icon-512x512.svg'
+            ];
+
+            // 安装 Service Worker 并缓存资源
+            self.addEventListener('install', event => {
+              console.log('Service Worker 正在安装');
+              
+              // 跳过等待，直接激活
+              self.skipWaiting();
+            });
+
+            // 激活 Service Worker 并清除旧缓存
+            self.addEventListener('activate', event => {
+              console.log('Service Worker 已激活');
+              
+              // 立即接管所有页面
+              event.waitUntil(clients.claim());
+              
+              // 清理旧缓存
+              event.waitUntil(
+                caches.keys().then(cacheNames => {
+                  return Promise.all(
+                    cacheNames.map(cacheName => {
+                      if (cacheName !== CACHE_NAME) {
+                        console.log('Service Worker: 删除旧缓存 ' + cacheName);
+                        return caches.delete(cacheName);
+                      }
+                    })
+                  );
+                }).catch(error => {
+                  console.error('清理缓存时出错:', error);
+                })
+              );
+            });
+
+            // 处理网络请求，使用网络优先策略
+            self.addEventListener('fetch', event => {
+              // 对于非GET请求或非本站请求，直接使用默认网络请求处理
+              if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
+                return;
+              }
+              
+              event.respondWith(
+                // 网络优先策略
+                fetch(event.request)
+                  .then(response => {
+                    // 如果网络请求成功，尝试更新缓存
+                    if (response && response.status === 200) {
+                      try {
+                        const responseToCache = response.clone();
+                        caches.open(CACHE_NAME)
+                          .then(cache => {
+                            cache.put(event.request, responseToCache);
+                          })
+                          .catch(err => {
+                            console.error('缓存更新失败:', err);
+                          });
+                      } catch (error) {
+                        console.error('克隆响应时出错:', error);
+                      }
+                    }
+                    return response;
+                  })
+                  .catch(() => {
+                    // 网络请求失败，尝试从缓存获取
+                    return caches.match(event.request);
+                  })
+              );
+            });
+            """
+            
+            return HttpResponse(basic_sw, content_type='application/javascript')
+    except Exception as e:
+        # 出现异常时返回简化版本的Service Worker
+        logger.error(f"Service Worker加载出错: {str(e)}")
+        minimal_sw = """
+        // 最小化Service Worker
+        self.addEventListener('install', event => {
+          self.skipWaiting();
+        });
+        
+        self.addEventListener('activate', event => {
+          event.waitUntil(clients.claim());
+        });
+        
+        self.addEventListener('fetch', event => {
+          event.respondWith(fetch(event.request));
+        });
+        """
+        return HttpResponse(minimal_sw, content_type='application/javascript')
+
+@login_required
+@csrf_exempt
+@require_POST
+def toggle_star(request, conversation_id):
+    """切换对话的收藏状态"""
+    try:
+        conversation = get_object_or_404(Conversation, id=conversation_id, user=request.user)
+        # 切换收藏状态
+        conversation.is_starred = not conversation.is_starred
+        conversation.save()
+        
+        return JsonResponse({
+            'success': True,
+            'is_starred': conversation.is_starred,
+            'message': '收藏状态已更新'
+        })
+    except Conversation.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': '对话不存在或无权访问'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'操作失败: {str(e)}'
+        }, status=500)
+
+def process_user_message(request):
+    """处理用户消息并通过API获取回复"""
+    if request.method == 'POST':
+        try:
+            # 从POST请求或请求体中获取数据
+            try:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                    data = json.loads(request.body)
+                else:
+                    data = json.loads(request.POST.get('data', '{}'))
+                    
+                user_message = data.get('message', '')
+                conversation_id = data.get('conversation_id')
+                model_id = data.get('model', settings.DEFAULT_MODEL)
+                
+                # 添加详细日志，记录请求内容
+                logger.info(f"收到process_user_message请求: conversation_id={conversation_id}, model_id={model_id}")
+                logger.info(f"请求消息结构: {type(user_message)}")
+                logger.info(f"消息内容: {json.dumps(user_message, ensure_ascii=False)}")
+                
+                if not conversation_id:
+                    return JsonResponse({'error': '缺少会话ID'}, status=400)
+                    
+                logger.info(f"处理用户消息: 会话ID={conversation_id}, 模型={model_id}")
+            except json.JSONDecodeError as e:
+                return JsonResponse({'error': f'无效的JSON格式: {str(e)}'}, status=400)
+            except Exception as e:
+                return JsonResponse({'error': f'获取请求参数失败: {str(e)}'}, status=400)
+
+            # 获取对话和相关信息
+            conversation = get_object_or_404(Conversation, id=conversation_id, user=request.user)
+            
+            # 首先初始化ai_model变量
+            ai_model = None
+            
+            # 获取模型信息
+            try:
+                ai_model = AIModel.objects.get(model_id=model_id, is_active=True)
+                logger.info(f"成功获取模型实例: {ai_model.model_id}, 支持图像: {ai_model.supports_image_analysis}")
+            except AIModel.DoesNotExist:
+                logger.warning(f"模型 {model_id} 不存在或未激活，尝试使用默认模型")
+                try:
+                    # 尝试使用默认模型
+                    ai_model = AIModel.objects.get(model_id="gpt-4o-all")
+                    model_id = "gpt-4o-all"
+                    logger.info(f"使用默认模型: {ai_model.model_id}")
+                except:
+                    return JsonResponse({'error': f'无法获取可用模型'}, status=400)
+            
+            # 创建API服务实例
+            api_service = ChatAPIService.get_service_for_model(model_id)
+            
+            # 处理用户消息
+            if isinstance(user_message, dict):
+                # 处理可能的图片附件
+                user_message_content = ""
+                content_array = None
+                image_url = None
+                
+                # 如果消息包含内容数组，说明可能是带图片的格式
+                if isinstance(user_message.get('content'), list):
+                    logger.info(f"检测到消息内容数组格式: {json.dumps(user_message.get('content'), ensure_ascii=False)}")
+                    content_items = user_message.get('content', [])
+                    
+                    # 创建API所需的内容数组格式
+                    content_array = []
+                    user_message_content = ""
+                    
+                    for item in content_items:
+                        if isinstance(item, dict):
+                            if item.get('type') == 'text':
+                                text = item.get('text', '')
+                                user_message_content += text
+                                content_array.append({"type": "text", "text": text})
+                                logger.info(f"添加文本内容: {text}")
+                            elif item.get('type') == 'image_url':
+                                # 提取图片URL
+                                url_obj = item.get('image_url', {})
+                                logger.info(f"处理图片URL对象: {json.dumps(url_obj, ensure_ascii=False)}, 类型: {type(url_obj)}")
+                                if isinstance(url_obj, dict) and 'url' in url_obj:
+                                    # 确保图片URL格式完全符合OpenAI要求
+                                    img_url = url_obj['url']
+                                    logger.info(f"标准化前图片URL: {img_url}")
+                                    
+                                    # 确保URL是完整的http/https URL
+                                    if not img_url.startswith(('http://', 'https://')):
+                                        if img_url.startswith('//'):
+                                            img_url = 'https:' + img_url
+                                        else:
+                                            img_url = 'https://' + img_url
+                                
+                                    logger.info(f"标准化后图片URL: {img_url}")
+                                    image_url = img_url
+                                    user_message_content += f"![图片]({img_url})"
+                                    content_array.append({
+                                        "type": "image_url", 
+                                        "image_url": {
+                                            "url": img_url,
+                                            "detail": "auto"  # 添加detail参数，使用auto自动决定分析详细程度
+                                        }
+                                    })
+                                elif isinstance(url_obj, str):
+                                    img_url = url_obj
+                                    logger.info(f"字符串URL直接使用: {img_url}")
+                                    
+                                    # 确保URL是完整的http/https URL
+                                    if not img_url.startswith(('http://', 'https://')):
+                                        if img_url.startswith('//'):
+                                            img_url = 'https:' + img_url
+                                        else:
+                                            img_url = 'https://' + img_url
+                                
+                                    image_url = img_url
+                                    user_message_content += f"![图片]({img_url})"
+                                    content_array.append({
+                                        "type": "image_url", 
+                                        "image_url": {
+                                            "url": img_url,
+                                            "detail": "auto"  # 添加detail参数，使用auto自动决定分析详细程度
+                                        }
+                                    })
+                            else:
+                                logger.info(f"无法提取图片URL，跳过: {url_obj}")
+                        else:
+                            text = str(item)
+                            logger.info(f"非字典项，直接添加为文本: {text}")
+                            user_message_content += text
+                            content_array.append({"type": "text", "text": text})
+                    
+                    logger.info(f"构建的API内容数组: {json.dumps(content_array, ensure_ascii=False)}")
+                # 如果消息是普通的键值对象
+                elif isinstance(user_message.get('text'), str):
+                    user_message_content = user_message.get('text', '')
+                # 如果直接包含图片URL
+                elif isinstance(user_message.get('image_url'), dict) or isinstance(user_message.get('image_url'), str):
+                    # 处理直接包含图片URL的情况
+                    if isinstance(user_message.get('image_url'), dict) and 'url' in user_message.get('image_url'):
+                        img_url = user_message.get('image_url')['url']
+                    else:
+                        img_url = user_message.get('image_url')
+                    
+                    # 确保URL是完整的http/https URL
+                    if not img_url.startswith(('http://', 'https://')):
+                        if img_url.startswith('//'):
+                            img_url = 'https:' + img_url
+                        else:
+                            img_url = 'https://' + img_url
+                    
+                    image_url = img_url
+                    user_message_content = f"![图片]({img_url})"
+                    
+                    # 创建API所需的内容数组格式
+                    content_array = [{
+                        "type": "image_url", 
+                        "image_url": {
+                            "url": img_url,
+                            "detail": "auto"  # 添加detail参数，使用auto自动决定分析详细程度
+                        }
+                    }]
+                # 兜底方案
+                else:
+                    user_message_content = str(user_message)
+            elif isinstance(user_message, list):
+                # 处理数组格式的消息
+                user_message_content = ""
+                content_array = []  # 直接初始化为空列表
+                image_url = None
+                
+                for item in user_message:
+                    if isinstance(item, dict):
+                        if item.get('type') == 'text':
+                            text_content = item.get('text', '')
+                            user_message_content += text_content
+                            content_array.append({"type": "text", "text": text_content})
+                        elif item.get('type') == 'image_url':
+                            # 提取图片URL
+                            url_obj = item.get('image_url', {})
+                            if isinstance(url_obj, dict) and 'url' in url_obj:
+                                img_url = url_obj['url']
+                                image_url = img_url
+                                # 添加Markdown格式的图片
+                                user_message_content += f"![图片]({img_url})"
+                                content_array.append({"type": "image_url", "image_url": {"url": img_url}})
+                            elif isinstance(url_obj, str):
+                                img_url = url_obj
+                                image_url = img_url
+                                user_message_content += f"![图片]({img_url})"
+                                content_array.append({"type": "image_url", "image_url": {"url": img_url}})
+                    else:
+                        text_content = str(item)
+                        user_message_content += text_content
+                        content_array.append({"type": "text", "text": text_content})
+            else:
+                # 检查是否包含Markdown格式的图片链接
+                user_message_content = user_message
+                content_array = None
+                image_url = None
+                
+                if isinstance(user_message_content, str) and '![' in user_message_content and '](' in user_message_content:
+                    try:
+                        # 尝试提取图片URL
+                        parts = user_message_content.split('![')
+                        text_part = parts[0].strip()
+                        
+                        # 处理图片部分
+                        image_parts = []
+                        for i in range(1, len(parts)):
+                            img_part = parts[i]
+                            if '](' in img_part and ')' in img_part:
+                                img_description = img_part.split('](')[0].strip()
+                                img_url = img_part.split('](')[1].split(')')[0].strip()
+                                
+                                # 确保URL是完整的http/https URL
+                                if not img_url.startswith(('http://', 'https://')):
+                                    if img_url.startswith('//'):
+                                        img_url = 'https:' + img_url
+                                    else:
+                                        img_url = 'https://' + img_url
+                                    
+                                image_parts.append((img_description, img_url))
+                        
+                        # 创建API所需的内容数组格式
+                        content_array = []
+                        
+                        # 添加文本部分(如果有)
+                        if text_part:
+                            content_array.append({"type": "text", "text": text_part})
+                        
+                        # 添加所有图片URL
+                        for desc, url in image_parts:
+                            content_array.append({
+                                "type": "image_url", 
+                                "image_url": {
+                                    "url": url,
+                                    "detail": "auto"  # 添加detail参数，使用auto自动决定分析详细程度
+                                }
+                            })
+                        
+                        # 记录第一个图片URL，便于保存消息
+                        if image_parts:
+                            image_url = image_parts[0][1]
+                    except Exception as e:
+                        logger.error(f"提取图片URL出错: {e}")
+                        content_array = None
+            
+            # 将用户消息保存到数据库
+            user_msg = Message.objects.create(
+                conversation=conversation,
+                role="user",
+                content=user_message_content
+            )
+            
+            # 如果有图片URL，更新记录
+            if image_url:
+                user_msg.has_image = True
+                user_msg.image_url = image_url
+                user_msg.save()
+            
+            # 获取对话历史记录
+            chat_history = Message.objects.filter(conversation=conversation).order_by('created_at')
+            
+            # 构建消息列表
+            messages = []
+            
+            # 添加系统提示（如果存在）
+            try:
+                if ai_model and hasattr(ai_model, 'system_message') and ai_model.system_message:
+                    messages.append({
+                        "role": "system",
+                        "content": ai_model.system_message
+                    })
+                    logger.info(f"添加系统提示: {ai_model.system_message}")
+            except Exception as e:
+                logger.error(f"添加系统提示时出错: {str(e)}")
+            
+            # 添加对话历史
+            for msg in chat_history:
+                messages.append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+            
+            # 添加用户当前消息
+            if content_array:
+                # 使用预构建的内容数组
+                logger.info(f"使用预构建的内容数组: {json.dumps(content_array, ensure_ascii=False)}")
+                messages.append({
+                    "role": "user",
+                    "content": content_array  # 直接使用内容数组作为content值
+                })
+                logger.info(f"最终添加到messages的用户消息(图片格式): {json.dumps(messages[-1], ensure_ascii=False)}")
+            else:
+                # 否则使用常规文本格式
+                logger.info(f"使用常规文本格式: {user_message_content}")
+                messages.append({
+                    "role": "user", 
+                    "content": user_message_content
+                })
+                logger.info(f"最终添加到messages的用户消息(文本格式): {json.dumps(messages[-1], ensure_ascii=False)}")
+            
+            # 估算token数量
+            input_tokens = len(user_message_content) / 3  # 简单估算，每3个字符约1个token
+            
+            # 检查用户积分
+            try:
+                user_profile = UserProfile.objects.get(user=request.user)
+            except ObjectDoesNotExist:
+                # 如果用户资料不存在，创建一个
+                user_profile = UserProfile.objects.create(user=request.user, credits=0)
+            
+            # 优先使用前端传递的模型ID
+            try:
+                model_to_use = model_id
+                logger.info(f"使用模型ID: {model_to_use}")
+            except Exception as e:
+                logger.error(f"获取模型ID失败: {str(e)}")
+                model_to_use = "gpt-4o-all"  # 默认使用支持图片的模型
+                logger.info(f"使用默认模型ID: {model_to_use}")
+            
+            # 获取回复
+            model_type = ChatAPIService.get_model_type(model_to_use)
+            
+            # 取得模型对应的价格配置
+            try:
+                ai_model = AIModel.objects.get(model_id=model_to_use)
+                token_price = TokenPrice.objects.get(model=ai_model)
+            except ObjectDoesNotExist:
+                return JsonResponse({'error': '模型价格配置不存在'}, status=400)
+            
+            # 估算token数量和所需积分（简单估算）
+            estimated_input_cost = input_tokens * token_price.input_price / 1000
+            
+            # 估计输出token成本 (假设输出是输入的3倍)
+            estimated_output_tokens = input_tokens * 3
+            estimated_output_cost = estimated_output_tokens * token_price.output_price / 1000
+            
+            # 总成本估算
+            estimated_total_cost = round(estimated_input_cost + estimated_output_cost)
+            
+            # 至少收费1积分
+            if estimated_total_cost < 1:
+                estimated_total_cost = 1
+            
+            # 检查积分是否足够
+            if estimated_total_cost > user_profile.credits:
+                return JsonResponse({
+                    'error': '积分不足，请充值后再试',
+                    'credits_info': {
+                        'required': estimated_total_cost,
+                        'current': user_profile.credits,
+                        'missing': estimated_total_cost - user_profile.credits
+                    },
+                    'code': 'INSUFFICIENT_CREDITS',
+                    'recharge_url': reverse('credits:recharge')
+                }, status=400)
+            
+            # 调用API并处理响应
+            try:
+                # 更新会话最后活动时间
+                conversation.last_activity = timezone.now()
+                conversation.save()
+                
+                # 打印最终发送给API的消息结构
+                logger.info(f"最终发送给API的消息结构: {json.dumps(messages, ensure_ascii=False)}")
+                logger.info(f"使用模型: {model_to_use}, 支持图像: {ai_model.supports_image_analysis if ai_model else '未知'}")
+                logger.info(f"消息列表长度: {len(messages)}")
+
+                # 检查是否包含图片消息
+                for i, msg in enumerate(messages):
+                    if isinstance(msg.get('content'), list):
+                        for item in msg.get('content'):
+                            if isinstance(item, dict) and item.get('type') == 'image_url':
+                                logger.info(f"发现图片消息 #[{i}]: {json.dumps(item, ensure_ascii=False)[:100]}...")
+
+                # 准备API请求
+                messages_for_api = messages
+                
+                # 获取对话记录
+                response = api_service.process_request(
+                    model_id=model_to_use,
+                    messages=messages,
+                    temperature=0.7,  # 使用默认值，因为model.temperature可能不存在
+                    max_tokens=1500,  # 使用默认值，因为model.max_tokens可能不存在
+                    top_p=1.0  # 使用默认值
+                )
+                
+                # 判断模型类型和处理响应
+                assistant_message = ""
+                if model_type == 'image':
+                    # 处理图像生成模型的响应
+                    if 'data' in response and len(response['data']) > 0:
+                        image_url = response['data'][0].get('url', '')
+                        if image_url:
+                            assistant_message = f"![生成的图像]({image_url})"
+                        else:
+                            assistant_message = "图像生成失败，请稍后再试。"
+                    else:
+                        assistant_message = "图像生成响应格式错误"
+                else:
+                    # 处理普通聊天模型的响应
+                    if 'choices' in response and len(response['choices']) > 0:
+                        assistant_message = response['choices'][0]['message']['content']
+                    else:
+                        assistant_message = "无法解析AI回复"
+                
+                # 创建助手消息
+                assistant_msg = Message.objects.create(
+                    conversation=conversation,
+                    role="assistant",
+                    content=assistant_message
+                )
+                
+                # 如果包含图片，更新图片URL
+                if model_type == 'image' and 'data' in response and len(response['data']) > 0:
+                    image_url = response['data'][0].get('url', '')
+                    if image_url:
+                        assistant_msg.has_image = True
+                        assistant_msg.image_url = image_url
+                        assistant_msg.save()
+                
+                # 构建响应JSON
+                response_data = {
+                    'status': 'success',
+                    'message': assistant_message,
+                    'conversation_id': conversation.id,
+                    'last_message_time': timezone.now().strftime('%H:%M')
+                }
+                
+                return JsonResponse(response_data)
+                
+            except Exception as e:
+                # 记录错误并返回友好的错误消息
+                error_msg = f"获取AI回复时出错: {str(e)}"
+                logger.error(error_msg)
+                
+                # 记录错误消息到数据库
+                Message.objects.create(
+                    conversation=conversation,
+                    role="system",
+                    content=f"错误: {error_msg}"
+                )
+                
+                return JsonResponse({
+                    'status': 'error',
+                    'message': "无法获取回复，请稍后再试",
+                    'error': str(e)
+                }, status=500)
+                
+        except Exception as e:
+            # 处理所有其他异常
+            error_msg = f"处理请求时出错: {str(e)}"
+            logger.error(error_msg)
+            return JsonResponse({
+                'status': 'error',
+                'message': "服务器处理请求时出错",
+                'error': str(e)
+            }, status=500)
+            
+    # 如果不是POST请求，返回405 Method Not Allowed
+    return JsonResponse({'status': 'error', 'message': '只接受POST请求'}, status=405)

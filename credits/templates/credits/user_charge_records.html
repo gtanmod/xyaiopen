@@ -1,0 +1,479 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}充值记录 - 小羊系统{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/credits.css' %}">
+<style>
+    .status-badge {
+        border-radius: 20px;
+        padding: 5px 10px;
+        font-size: 0.8rem;
+        display: inline-block;
+        white-space: nowrap;
+        line-height: 1;
+    }
+    .status-pending {
+        background-color: #FFD166;
+        color: #212529;
+    }
+    .status-approved {
+        background-color: #06D6A0;
+        color: white;
+    }
+    .status-rejected {
+        background-color: #EF476F;
+        color: white;
+    }
+    .status-canceled {
+        background-color: #6c757d;
+        color: white;
+    }
+    .main-content {
+        padding: 0;
+        width: calc(100% - var(--sidebar-width));
+        margin-left: var(--sidebar-width);
+        position: absolute;
+        right: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+    }
+    .card {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        width: 100%;
+    }
+    .table-hover tbody tr:hover {
+        background-color: rgba(74, 86, 150, 0.05);
+    }
+    .header {
+        height: var(--header-height);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 15px;
+        background-color: var(--bg-main);
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+        width: 100%;
+    }
+    .header-left {
+        display: flex;
+        align-items: center;
+    }
+    .header-right {
+        display: flex;
+        align-items: center;
+    }
+    .credit-balance {
+        background-color: rgba(74, 86, 150, 0.1);
+        color: var(--primary-color);
+        font-weight: 600;
+        padding: 8px 15px;
+        border-radius: 20px;
+        margin-right: 15px;
+    }
+    .table th {
+        font-weight: 600;
+        color: var(--text-primary);
+        border-top: none;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .pagination .page-item.active .page-link {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+    .pagination .page-link {
+        color: var(--primary-color);
+    }
+    .credits-card {
+        background-color: var(--primary-color);
+        color: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(74, 86, 150, 0.2);
+        transition: all 0.3s ease;
+    }
+    .credits-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(74, 86, 150, 0.3);
+    }
+    .credits-card .card-body {
+        padding: 20px;
+    }
+    .credits-card .title {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+    .credits-card .value {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin: 10px 0;
+    }
+    .btn-recharge {
+        background-color: white;
+        color: var(--primary-color);
+        border: none;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+    .btn-recharge:hover {
+        background-color: rgba(255,255,255,0.9);
+        transform: translateY(-2px);
+    }
+    .records-container {
+        width: 100%;
+        margin: 0 auto;
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 0 0 20px;
+    }
+    .content-wrapper {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 15px;
+    }
+    .empty-records {
+        padding: 50px 20px;
+        text-align: center;
+        background-color: #f8f9fa;
+        border-radius: 12px;
+    }
+    .empty-records i {
+        font-size: 3rem;
+        color: #d1d1d1;
+        margin-bottom: 20px;
+    }
+    .btn-primary {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-weight: 500;
+    }
+    .btn-primary:hover {
+        background-color: var(--primary-hover);
+        border-color: var(--primary-hover);
+    }
+    .card-header {
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        background-color: white;
+        padding: 15px 20px;
+    }
+    .page-item:first-child .page-link {
+        border-top-left-radius: 8px;
+        border-bottom-left-radius: 8px;
+    }
+    .page-item:last-child .page-link {
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+    }
+    
+    /* 自定义滚动条样式 */
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0,0,0,0.2) transparent;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: rgba(0,0,0,0.2);
+        border-radius: 6px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background-color: transparent;
+    }
+    
+    /* 响应式表格处理 */
+    @media (max-width: 768px) {
+        .main-content {
+            width: 100%;
+            margin-left: 0;
+        }
+        
+        .table-responsive {
+            border: 0;
+        }
+        
+        .header-right {
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        
+        .credit-balance {
+            margin-bottom: 5px;
+            margin-right: 0;
+        }
+        
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            display: inline-block;
+            width: auto;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .table th, .table td {
+            padding: 0.5rem;
+            vertical-align: middle;
+        }
+        
+        /* 优化表格在小屏幕上的显示 */
+        .table-hover tbody tr td {
+            white-space: nowrap;
+        }
+        
+        .empty-records {
+            padding: 30px 15px;
+        }
+        
+        .empty-records i {
+            font-size: 2.5rem;
+        }
+    }
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 36px;
+        width: 36px;
+        border-radius: 4px;
+        background-color: transparent;
+        border: none;
+        margin-right: 10px;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .back-button:hover {
+        background-color: rgba(0,0,0,0.05);
+    }
+    .back-button i {
+        font-size: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 引入通用侧边栏组件 -->
+{% include "components/sidebar.html" with active_namespace="credits" %}
+
+<!-- 主内容区 -->
+<div class="main-content" id="mainContent">
+    <!-- 头部 -->
+    <div class="header">
+        <div class="header-left">
+            <a href="{% url 'credits:dashboard' %}" class="back-button" title="返回积分首页">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h5 class="mb-0">充值记录</h5>
+        </div>
+        <div class="header-right">
+            <div class="credit-balance">
+                <i class="fas fa-coins me-1"></i>
+                当前积分: <span id="user-credits">{{ user_credits }}</span>
+            </div>
+            <a href="{% url 'credits:recharge' %}" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus me-1"></i> 充值积分
+            </a>
+        </div>
+    </div>
+
+    <!-- 内容区 -->
+    <div class="records-container custom-scrollbar">
+        <div class="content-wrapper">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">历史充值记录</h6>
+                </div>
+                <div class="card-body p-0">
+                    {% if charge_records %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">订单号</th>
+                                    <th scope="col">金额</th>
+                                    <th scope="col">积分</th>
+                                    <th scope="col">支付方式</th>
+                                    <th scope="col">创建时间</th>
+                                    <th scope="col">状态</th>
+                                    <th scope="col">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in charge_records %}
+                                <tr>
+                                    <td>{{ record.transaction_code }}</td>
+                                    <td>{{ record.amount }}元</td>
+                                    <td>{{ record.credits }}</td>
+                                    <td>{{ record.payment_method }}</td>
+                                    <td>{{ record.created_at|date:"Y-m-d H:i" }}</td>
+                                    <td>
+                                        {% if record.status == 'pending' %}
+                                            <span class="status-badge status-pending">待处理</span>
+                                        {% elif record.status == 'approved' %}
+                                            <span class="status-badge status-approved">已通过</span>
+                                        {% elif record.status == 'rejected' %}
+                                            <span class="status-badge status-rejected">已拒绝</span>
+                                        {% else %}
+                                            <span class="status-badge status-canceled">已取消</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'credits:recharge' %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-plus-circle me-1"></i> 充值积分
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- 分页 -->
+                    {% if charge_records.has_other_pages %}
+                    <div class="d-flex justify-content-center p-3">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination">
+                                {% if charge_records.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ charge_records.previous_page_number }}" aria-label="Previous">
+                                            <span aria-hidden="true">&laquo;</span>
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <a class="page-link" href="#" aria-label="Previous">
+                                            <span aria-hidden="true">&laquo;</span>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                                
+                                {% for i in charge_records.paginator.page_range %}
+                                    {% if charge_records.number == i %}
+                                        <li class="page-item active"><a class="page-link" href="#">{{ i }}</a></li>
+                                    {% else %}
+                                        <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if charge_records.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ charge_records.next_page_number }}" aria-label="Next">
+                                            <span aria-hidden="true">&raquo;</span>
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <a class="page-link" href="#" aria-label="Next">
+                                            <span aria-hidden="true">&raquo;</span>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+                    
+                    {% else %}
+                    <!-- 没有记录时显示 -->
+                    <div class="empty-records">
+                        <i class="fas fa-receipt"></i>
+                        <p class="text-muted">暂无充值记录</p>
+                        <a href="{% url 'credits:recharge' %}" class="btn btn-primary mt-2">
+                            <i class="fas fa-plus-circle me-1"></i> 立即充值
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 加载用户积分信息
+    function loadUserCredits() {
+        fetch('/credits/api/user-credits/')
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    // 更新侧边栏积分
+                    document.getElementById('user-credits').textContent = data.credits;
+                    
+                    // 更新页面上的积分显示（包括头部和卡片）
+                    const creditDisplays = document.querySelectorAll('.credit-balance');
+                    creditDisplays.forEach(display => {
+                        const creditSpan = display.querySelector('span') || display;
+                        if (creditSpan && creditSpan.textContent.includes('当前积分')) {
+                            creditSpan.textContent = creditSpan.textContent.replace(/\d+/, data.credits);
+                        } else {
+                            display.innerHTML = display.innerHTML.replace(/\d+/, data.credits);
+                        }
+                    });
+                    
+                    // 更新积分卡片显示
+                    const creditValue = document.querySelector('.credits-card .value');
+                    if (creditValue) {
+                        creditValue.textContent = data.credits;
+                    }
+                } else {
+                    document.getElementById('user-credits').textContent = '--';
+                }
+            })
+            .catch(error => {
+                console.error('获取积分信息失败:', error);
+                document.getElementById('user-credits').textContent = '获取失败';
+            });
+    }
+    
+    // 页面加载时获取积分
+    loadUserCredits();
+    
+    // 定时更新积分信息（每5分钟）
+    setInterval(loadUserCredits, 5 * 60 * 1000);
+    
+    // 侧边栏遮罩层修复
+    const overlay = document.querySelector('.sidebar-overlay');
+    const sidebar = document.querySelector('.sidebar');
+    
+    if (overlay && sidebar) {
+        // 确保overlay能够点击并正确关闭侧边栏
+        overlay.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // 关闭侧边栏
+            sidebar.classList.add('sidebar-collapsed');
+            sidebar.classList.remove('sidebar-active');
+            
+            // 隐藏遮罩层
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 300);
+            
+            // 恢复背景滚动
+            document.body.style.overflow = '';
+        });
+    }
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,773 @@
+/* 社区模块样式 */
+:root {
+    /* 主题颜色 - 保持与全局样式一致 */
+    --primary-color: #333333;
+    --primary-hover: #555555;
+    --secondary-color: #f5f5f5;
+    
+    /* 背景颜色 */
+    --bg-sidebar: #222222;
+    --bg-main: #fff;
+    --bg-hover: rgba(255, 255, 255, 0.1);
+    
+    /* 文本颜色 */
+    --text-primary: #333333;
+    --text-secondary: #6e6e6e;
+    --text-light: #e5e5e5;
+    
+    /* 气泡颜色 */
+    --bubble-user: #f0f0f0;
+    --bubble-assistant: #ffffff;
+    --bubble-user-border: #e0e0e0;
+    --bubble-assistant-border: #e5e5e5;
+    
+    /* 其他变量 */
+    --sidebar-width: 250px;
+    --header-height: 60px;
+    --border-radius: 12px;
+}
+
+/* 社区公共样式 */
+.community-container {
+    max-width: 100%;
+    padding: 20px;
+    transition: padding 0.3s ease;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* 瀑布流布局样式 */
+.post-list {
+    column-count: 3;
+    column-gap: 20px;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+/* 确保空状态在瀑布流布局中不被拆分 */
+.post-list .empty-state {
+    column-span: all; /* 跨越所有列 */
+    break-inside: avoid; /* 避免内部断开 */
+    page-break-inside: avoid; /* 兼容性 */
+    display: inline-block; /* 确保在所有浏览器中都作为一个整体 */
+    width: 100%; /* 占据整行宽度 */
+    box-sizing: border-box;
+}
+
+/* 帖子卡片样式修改为适应瀑布流 */
+.post-card {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    overflow: hidden;
+    border: 1px solid var(--bubble-user-border);
+    display: inline-block;
+    width: 100%;
+    break-inside: avoid;
+}
+
+.post-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.post-image-container {
+    width: 100%;
+    height: 180px;
+    overflow: hidden;
+    position: relative;
+}
+
+.post-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.post-card:hover .post-image {
+    transform: scale(1.05);
+}
+
+.post-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.post-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.post-title a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.post-title a:hover {
+    color: var(--primary-color);
+}
+
+.post-meta {
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.post-footer {
+    padding: 12px 20px;
+    background-color: var(--secondary-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.post-stats {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.post-stat {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.post-pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+    flex-wrap: wrap;
+}
+
+.new-post-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.new-post-btn:hover {
+    background-color: var(--primary-hover);
+    color: white;
+    text-decoration: none;
+}
+
+/* 消息显示样式 */
+.message-container {
+    margin-bottom: 20px;
+}
+
+.alert {
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.alert-danger {
+    background-color: #fff2f0;
+    border: 1px solid #ffccc7;
+    color: #ff4d4f;
+}
+
+.alert-success {
+    background-color: #f6ffed;
+    border: 1px solid #b7eb8f;
+    color: #52c41a;
+}
+
+.alert-info {
+    background-color: #e6f7ff;
+    border: 1px solid #91d5ff;
+    color: #1890ff;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background-color: #fff;
+    border-radius: 10px;
+    border: 1px dashed #ddd;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-width: 500px;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+.empty-state i {
+    margin-bottom: 10px;
+    color: #aaa;
+    display: block;
+}
+
+.empty-state h3 {
+    font-weight: 600;
+    margin: 5px 0;
+    display: block;
+    width: 100%;
+}
+
+.empty-state p {
+    color: var(--text-secondary);
+    margin-bottom: 0;
+    margin-top: 5px;
+    display: block;
+    width: 100%;
+}
+
+/* 帖子详情页样式 */
+.post-detail-container {
+    max-width: 100%;
+    padding: 20px;
+    transition: padding 0.3s ease;
+}
+
+.post-detail-card {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+    overflow: hidden;
+    border: 1px solid var(--bubble-user-border);
+}
+
+.post-detail-header {
+    padding: 20px;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.post-detail-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0 0 10px;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.post-detail-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.post-detail-author {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.post-detail-image {
+    width: 100%;
+    max-height: 400px;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f5f5f5;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.post-detail-image img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    max-height: 400px;
+}
+
+.post-detail-content {
+    padding: 20px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.post-detail-actions {
+    padding: 15px 20px;
+    background-color: var(--secondary-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.post-action-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.post-action-btn:hover {
+    background-color: rgba(0,0,0,0.05);
+    color: var(--primary-color);
+}
+
+.post-action-btn.active {
+    color: #ff4d4d;
+}
+
+.post-action-btn.active i {
+    color: #ff4d4d;
+}
+
+/* 评论区样式 */
+.comments-section {
+    margin-top: 30px;
+}
+
+.comments-header {
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.comment-card {
+    background-color: #fff;
+    border-radius: 10px;
+    padding: 15px;
+    border: 1px solid var(--bubble-user-border);
+}
+
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.comment-author {
+    font-weight: 500;
+}
+
+.comment-time {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.comment-content {
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.comment-form {
+    margin-top: 30px;
+    background-color: #fff;
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid var(--bubble-user-border);
+}
+
+.comment-form-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.comment-input {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 15px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.comment-submit {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.comment-submit:hover {
+    background-color: var(--primary-hover);
+}
+
+.back-to-list {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-secondary);
+    text-decoration: none;
+    margin-bottom: 15px;
+    font-size: 14px;
+    gap: 5px;
+}
+
+.back-to-list:hover {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.empty-comments {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-secondary);
+}
+
+/* 创建帖子页面样式 */
+.create-post-container {
+    max-width: 100%;
+    padding: 20px;
+    transition: padding 0.3s ease;
+}
+
+.create-post-card {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+    overflow: hidden;
+    border: 1px solid var(--bubble-user-border);
+    padding: 20px;
+}
+
+.create-post-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0 0 20px;
+    color: var(--text-primary);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    font-family: inherit;
+}
+
+.post-content-textarea {
+    min-height: 300px;
+    resize: vertical;
+}
+
+.create-post-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.create-post-btn:hover {
+    background-color: var(--primary-hover);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.cancel-btn {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cancel-btn:hover {
+    background-color: #f5f5f5;
+    color: var(--text-primary);
+}
+
+/* 图片上传样式 */
+.image-upload-container {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.image-preview-wrapper {
+    width: 200px;
+    height: 150px;
+    border: 1px dashed #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f9f9f9;
+}
+
+.img-preview {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.image-upload-controls {
+    flex: 1;
+    min-width: 200px;
+}
+
+.form-control-file {
+    margin-bottom: 5px;
+}
+
+.markdown-helper {
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    margin-top: 10px;
+    border-left: 3px solid var(--primary-color);
+}
+
+/* 编辑器工具栏 */
+.editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.toolbar-btn {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.toolbar-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* 响应式调整 - 移动端优化 */
+@media (max-width: 1200px) {
+    .post-list {
+        column-count: 2;
+    }
+}
+
+@media (max-width: 768px) {
+    .post-list {
+        column-count: 1;
+    }
+    
+    .community-container,
+    .post-detail-container,
+    .create-post-container {
+        padding: 15px 10px;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .page-header h1 {
+        margin-bottom: 10px;
+    }
+
+    .new-post-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .post-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .post-meta {
+        margin-top: 5px;
+    }
+
+    .post-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .post-detail-title {
+        font-size: 20px;
+    }
+
+    .post-detail-meta {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .post-detail-actions {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+
+    .comments-header {
+        font-size: 16px;
+    }
+
+    .comment-form {
+        padding: 15px;
+    }
+
+    .comment-input {
+        min-height: 80px;
+    }
+
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .form-actions .cancel-btn,
+    .form-actions .create-post-btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .pagination .page-item {
+        margin-bottom: 5px;
+    }
+    
+    .post-image-container {
+        height: 140px;
+    }
+}
+
+/* 较小屏幕的额外调整 */
+@media (max-width: 480px) {
+    .community-container,
+    .post-detail-container,
+    .create-post-container {
+        padding: 10px 8px;
+    }
+
+    .post-card {
+        margin-bottom: 15px;
+    }
+
+    .post-header,
+    .post-footer {
+        padding: 12px 15px;
+    }
+
+    .post-title {
+        font-size: 16px;
+    }
+
+    .post-detail-title {
+        font-size: 18px;
+    }
+
+    .post-detail-content {
+        padding: 15px;
+    }
+
+    .comment-card {
+        padding: 12px;
+    }
+
+    .empty-state {
+        padding: 30px 15px;
+    }
+    
+    .empty-state i {
+        font-size: 2em !important;
+    }
+    
+    .empty-state h3 {
+        font-size: 16px;
+        margin: 5px 0;
+    }
+    
+    .empty-state p {
+        font-size: 14px;
+    }
+} 

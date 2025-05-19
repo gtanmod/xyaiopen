@@ -1,0 +1,76 @@
+﻿// 灏唖crollToBottom鏂规硶鏆撮湶缁欏叏灞€锛屼緵澶栭儴璋冪敤
+window.chatFunctions = {
+    scrollToBottom: chatFunctions.scrollToBottom.bind(chatFunctions)
+};
+
+// 澶勭悊鍔犺浇鎸囩ず鍣?
+(function handleLoadingIndicator() {
+    // 纭繚鍔犺浇鎸囩ず鍣ㄥ缁堟坊鍔犲埌鑱婂ぉ瀹瑰櫒鐨勬湯灏?
+    const loadingEl = document.getElementById('loading');
+    const chatContainerEl = document.getElementById('chatContainer');
+    
+    if (chatContainerEl && loadingEl) {
+        if (loadingEl.parentNode) {
+            loadingEl.parentNode.removeChild(loadingEl);
+        }
+        chatContainerEl.appendChild(loadingEl);
+    }
+    
+    // 鍙戦€佹秷鎭椂璋冩暣鍔犺浇鎸囩ず鍣ㄤ綅缃?
+    const sendBtnEl = document.querySelector('.send-btn');
+    if (sendBtnEl) {
+        sendBtnEl.addEventListener('click', function() {
+            setTimeout(function() {
+                if (loadingEl && chatContainerEl) {
+                    if (loadingEl.parentNode) {
+                        loadingEl.parentNode.removeChild(loadingEl);
+                    }
+                    chatContainerEl.appendChild(loadingEl);
+                }
+            }, 10);
+        });
+    }
+})();
+
+// 绯荤粺鎻愮ず璇嶉噸缃寜閽?
+const resetSystemPromptBtn = document.getElementById('resetSystemPrompt');
+if (resetSystemPromptBtn) {
+    resetSystemPromptBtn.addEventListener('click', function() {
+        document.getElementById('system_prompt').value = '浣犳槸涓€涓湁鐢ㄧ殑浜哄伐鏅鸿兘鍔╂墜銆?;
+    });
+}
+
+// 澶勭悊鍙傛暟浼犻€掔粰鍚庣
+const chatSettingsForm = document.getElementById('chatSettingsForm');
+if (chatSettingsForm) {
+    chatSettingsForm.addEventListener('submit', function(e) {
+        // 娣诲姞澶嶉€夋鐨勫€煎鐞?
+        const useCot = document.getElementById('use_cot');
+        const useFunctions = document.getElementById('use_functions');
+        
+        // 鍒涘缓闅愯棌瀛楁瀛樺偍澶嶉€夋鐨勫€?
+        if (!document.getElementById('use_cot_hidden')) {
+            const useCotHidden = document.createElement('input');
+            useCotHidden.type = 'hidden';
+            useCotHidden.id = 'use_cot_hidden';
+            useCotHidden.name = 'use_cot';
+            useCotHidden.value = useCot.checked ? 'true' : 'false';
+            chatSettingsForm.appendChild(useCotHidden);
+        } else {
+            document.getElementById('use_cot_hidden').value = useCot.checked ? 'true' : 'false';
+        }
+        
+        if (!document.getElementById('use_functions_hidden')) {
+            const useFunctionsHidden = document.createElement('input');
+            useFunctionsHidden.type = 'hidden';
+            useFunctionsHidden.id = 'use_functions_hidden';
+            useFunctionsHidden.name = 'use_functions';
+            useFunctionsHidden.value = useFunctions.checked ? 'true' : 'false';
+            chatSettingsForm.appendChild(useFunctionsHidden);
+        } else {
+            document.getElementById('use_functions_hidden').value = useFunctions.checked ? 'true' : 'false';
+        }
+    });
+}
+</script>
+{% endblock %} 
